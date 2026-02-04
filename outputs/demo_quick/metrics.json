@@ -1,0 +1,170 @@
+{
+  "seed": 42,
+  "train_days": 1000,
+  "oos_days": 4327,
+  "n_assets": 5,
+  "assets": [
+    "AGG",
+    "EEM",
+    "EFA",
+    "GLD",
+    "IEF"
+  ],
+  "alphas": [
+    0.01,
+    0.05
+  ],
+  "n_sim": 1000,
+  "methods": {
+    "hs": {
+      "0.01": {
+        "method": "hs",
+        "alpha": 0.01,
+        "n_obs": 4327,
+        "n_breaches": 53,
+        "hit_rate": 0.012248671134735382,
+        "expected_rate": 0.01,
+        "kupiec_stat": 2.0623474153263714,
+        "kupiec_pval": 0.15097743386456064,
+        "chris_stat": 17.121392451884162,
+        "chris_pval": 3.5065114603161085e-05,
+        "es_shortfall_ratio": 1.1692781909483343,
+        "pinball_loss": 0.000237738839359154
+      },
+      "0.05": {
+        "method": "hs",
+        "alpha": 0.05,
+        "n_obs": 4327,
+        "n_breaches": 220,
+        "hit_rate": 0.05084354055927895,
+        "expected_rate": 0.05,
+        "kupiec_stat": 0.064476991154379,
+        "kupiec_pval": 0.7995548915867833,
+        "chris_stat": 2.9357017983356855,
+        "chris_pval": 0.0866410022154227,
+        "es_shortfall_ratio": 1.0043531410699436,
+        "pinball_loss": 0.0007033534549560524
+      }
+    },
+    "ewma": {
+      "0.01": {
+        "method": "ewma",
+        "alpha": 0.01,
+        "n_obs": 4327,
+        "n_breaches": 73,
+        "hit_rate": 0.016870811185578923,
+        "expected_rate": 0.01,
+        "kupiec_stat": 17.10479502499686,
+        "kupiec_pval": 3.537288502564184e-05,
+        "chris_stat": 10.116108240140647,
+        "chris_pval": 0.0014697902710896216,
+        "es_shortfall_ratio": 1.188151860896485,
+        "pinball_loss": 0.00020971574261366608
+      },
+      "0.05": {
+        "method": "ewma",
+        "alpha": 0.05,
+        "n_obs": 4327,
+        "n_breaches": 206,
+        "hit_rate": 0.04760804252368847,
+        "expected_rate": 0.05,
+        "kupiec_stat": 0.5292631761233224,
+        "kupiec_pval": 0.4669168003315316,
+        "chris_stat": 9.2180861157467,
+        "chris_pval": 0.002396359231630951,
+        "es_shortfall_ratio": 1.1356460177304415,
+        "pinball_loss": 0.0006654717934118724
+      }
+    },
+    "dcc": {
+      "0.01": {
+        "method": "dcc",
+        "alpha": 0.01,
+        "n_obs": 4327,
+        "n_breaches": 62,
+        "hit_rate": 0.014328634157614976,
+        "expected_rate": 0.01,
+        "kupiec_stat": 7.221692899227946,
+        "kupiec_pval": 0.007202774657064537,
+        "chris_stat": 9.622915476771482,
+        "chris_pval": 0.0019216443366499858,
+        "es_shortfall_ratio": 1.100995069505461,
+        "pinball_loss": 0.00019389673209865114
+      },
+      "0.05": {
+        "method": "dcc",
+        "alpha": 0.05,
+        "n_obs": 4327,
+        "n_breaches": 180,
+        "hit_rate": 0.041599260457591866,
+        "expected_rate": 0.05,
+        "kupiec_stat": 6.801873827590498,
+        "kupiec_pval": 0.00910622521029103,
+        "chris_stat": 3.679975267097234,
+        "chris_pval": 0.05506966700935367,
+        "es_shortfall_ratio": 1.0850090631945912,
+        "pinball_loss": 0.0006540160301393696
+      }
+    },
+    "static_vine": {
+      "0.01": {
+        "method": "static_vine",
+        "alpha": 0.01,
+        "n_obs": 4327,
+        "n_breaches": 44,
+        "hit_rate": 0.010168708111855789,
+        "expected_rate": 0.01,
+        "kupiec_stat": 0.012371419967450947,
+        "kupiec_pval": 0.9114364326827802,
+        "chris_stat": 2.9963083109914237,
+        "chris_pval": 0.08345447896183733,
+        "es_shortfall_ratio": 1.061404942400053,
+        "pinball_loss": 0.00019108111462450792
+      },
+      "0.05": {
+        "method": "static_vine",
+        "alpha": 0.05,
+        "n_obs": 4327,
+        "n_breaches": 186,
+        "hit_rate": 0.04298590247284493,
+        "expected_rate": 0.05,
+        "kupiec_stat": 4.695437519324059,
+        "kupiec_pval": 0.030242798326240883,
+        "chris_stat": 1.919377630215422,
+        "chris_pval": 0.16592528623828495,
+        "es_shortfall_ratio": 1.0220857452903669,
+        "pinball_loss": 0.0006537544816644907
+      }
+    },
+    "gas_vine": {
+      "0.01": {
+        "method": "gas_vine",
+        "alpha": 0.01,
+        "n_obs": 4327,
+        "n_breaches": 53,
+        "hit_rate": 0.012248671134735382,
+        "expected_rate": 0.01,
+        "kupiec_stat": 2.0623474153263714,
+        "kupiec_pval": 0.15097743386456064,
+        "chris_stat": 1.8692451934874725,
+        "chris_pval": 0.17156155346913915,
+        "es_shortfall_ratio": 1.0708296374960644,
+        "pinball_loss": 0.0001940630593380323
+      },
+      "0.05": {
+        "method": "gas_vine",
+        "alpha": 0.05,
+        "n_obs": 4327,
+        "n_breaches": 222,
+        "hit_rate": 0.0513057545643633,
+        "expected_rate": 0.05,
+        "kupiec_stat": 0.15405171330144185,
+        "kupiec_pval": 0.694693080693937,
+        "chris_stat": 2.7031382864224724,
+        "chris_pval": 0.1001509331394923,
+        "es_shortfall_ratio": 1.0321009278782993,
+        "pinball_loss": 0.0006545080087149502
+      }
+    }
+  }
+}

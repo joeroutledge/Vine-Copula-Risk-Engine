@@ -1,0 +1,13 @@
+{
+  "produced_utc": "2026-02-04T01:01:40Z",
+  "files": {
+    "backtest_summary.csv": "3e7bb466d0e3716f4aa058ba47c1793ba4cdd77b24f7a42a2905d826199779df",
+    "breaches.png": "7bcca51e9e91e0b9950bac4e17ab17ab9c55122e69b77137ae5d480e4084c591",
+    "metrics.json": "94ae892a940ed18109f3e5d99c7a208f54996d5c7b6a51c5d60288735f741205",
+    "scale_sanity.json": "8e266eb5d7d92bbcceb82f535698753f9cff634df24fd6ae5679d4fd11230753",
+    "var_es_timeseries.csv": "a2ec58a4d0f7a0190f96cc467acd90d931de9d6118997391f38be205b347d4b8",
+    "var_forecasts.png": "5b7eed41e02982656ead32479047b0c5054d56d718de66d14e1f04043ccf8f8f",
+    "vine_model_card_gas.json": "490f1cf9435011c9788c60658875418b3c941a2f1525673aab558212648e7970",
+    "vine_model_card_static.json": "fcde24aead91094005a72959ecf4cf98df00d8ec3b83fe55e7579d6a9562ef67"
+  }
+}

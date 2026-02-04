@@ -1,0 +1,225 @@
+{
+  "dim": 5,
+  "vine_type": "D-vine",
+  "variable_order": [
+    "IEF",
+    "AGG",
+    "GLD",
+    "EEM",
+    "EFA"
+  ],
+  "trunc_lvl": 4,
+  "is_full_vine": true,
+  "total_pair_copulas": 10,
+  "family_set": [
+    "gaussian",
+    "student",
+    "clayton",
+    "gumbel",
+    "frank"
+  ],
+  "pair_copulas": [
+    {
+      "tree": 1,
+      "edge_index": 0,
+      "conditioned": [
+        "IEF",
+        "AGG"
+      ],
+      "conditioning": [],
+      "family": "student",
+      "rotation": 0,
+      "parameters": [
+        0.830783,
+        4.5088
+      ],
+      "kendall_tau": 0.624214,
+      "is_dynamic": true,
+      "gas_params": {
+        "omega": 0.082071,
+        "A": 0.104768,
+        "B": 1.638961,
+        "B_effective": 0.927327
+      },
+      "rho_static": 0.830783,
+      "nu_fixed": 4.5088
+    },
+    {
+      "tree": 1,
+      "edge_index": 1,
+      "conditioned": [
+        "AGG",
+        "GLD"
+      ],
+      "conditioning": [],
+      "family": "frank",
+      "rotation": 0,
+      "parameters": [
+        0.36737071289635165
+      ],
+      "kendall_tau": 0.040764,
+      "is_dynamic": false
+    },
+    {
+      "tree": 1,
+      "edge_index": 2,
+      "conditioned": [
+        "GLD",
+        "EEM"
+      ],
+      "conditioning": [],
+      "family": "student",
+      "rotation": 0,
+      "parameters": [
+        0.24341,
+        10.6263
+      ],
+      "kendall_tau": 0.156532,
+      "is_dynamic": true,
+      "gas_params": {
+        "omega": 0.001112,
+        "A": 0.010428,
+        "B": 2.917279,
+        "B_effective": 0.994168
+      },
+      "rho_static": 0.24341,
+      "nu_fixed": 10.6263
+    },
+    {
+      "tree": 1,
+      "edge_index": 3,
+      "conditioned": [
+        "EEM",
+        "EFA"
+      ],
+      "conditioning": [],
+      "family": "student",
+      "rotation": 0,
+      "parameters": [
+        0.836583,
+        9.2291
+      ],
+      "kendall_tau": 0.6309,
+      "is_dynamic": true,
+      "gas_params": {
+        "omega": 0.053204,
+        "A": 0.050404,
+        "B": 1.887346,
+        "B_effective": 0.955141
+      },
+      "rho_static": 0.836583,
+      "nu_fixed": 9.2291
+    },
+    {
+      "tree": 2,
+      "edge_index": 0,
+      "conditioned": [
+        "IEF",
+        "GLD"
+      ],
+      "conditioning": [
+        "AGG"
+      ],
+      "family": "gumbel",
+      "rotation": 270,
+      "parameters": [
+        1.0197252203325962
+      ],
+      "kendall_tau": -0.019344
+    },
+    {
+      "tree": 2,
+      "edge_index": 1,
+      "conditioned": [
+        "AGG",
+        "EEM"
+      ],
+      "conditioning": [
+        "GLD"
+      ],
+      "family": "clayton",
+      "rotation": 90,
+      "parameters": [
+        0.2204305028513711
+      ],
+      "kendall_tau": -0.099274
+    },
+    {
+      "tree": 2,
+      "edge_index": 2,
+      "conditioned": [
+        "GLD",
+        "EFA"
+      ],
+      "conditioning": [
+        "EEM"
+      ],
+      "family": "frank",
+      "rotation": 0,
+      "parameters": [
+        1.2660392032070569
+      ],
+      "kendall_tau": 0.138476
+    },
+    {
+      "tree": 3,
+      "edge_index": 0,
+      "conditioned": [
+        "IEF",
+        "EEM"
+      ],
+      "conditioning": [
+        "AGG",
+        "GLD"
+      ],
+      "family": "student",
+      "rotation": 0,
+      "parameters": [
+        -0.217358214719705,
+        6.066641588937993
+      ],
+      "kendall_tau": -0.139488
+    },
+    {
+      "tree": 3,
+      "edge_index": 1,
+      "conditioned": [
+        "AGG",
+        "EFA"
+      ],
+      "conditioning": [
+        "GLD",
+        "EEM"
+      ],
+      "family": "clayton",
+      "rotation": 0,
+      "parameters": [
+        0.0662218056837333
+      ],
+      "kendall_tau": 0.03205
+    },
+    {
+      "tree": 4,
+      "edge_index": 0,
+      "conditioned": [
+        "IEF",
+        "EFA"
+      ],
+      "conditioning": [
+        "AGG",
+        "GLD",
+        "EEM"
+      ],
+      "family": "gumbel",
+      "rotation": 270,
+      "parameters": [
+        1.0209153609360078
+      ],
+      "kendall_tau": -0.020487
+    }
+  ],
+  "gas_scope": "tree1_elliptical_only",
+  "dynamic_edge_count": 3,
+  "static_tree1_edge_count": 1,
+  "higher_tree_dynamics": "static"
+}
