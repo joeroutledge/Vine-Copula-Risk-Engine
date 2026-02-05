@@ -1,18 +1,18 @@
 {
-  "produced_utc": "2026-02-05T18:45:52Z",
+  "produced_utc": "2026-02-05T23:24:35Z",
   "files": {
-    "backtest_summary.csv": "75a7b48f29d1f979e97ad7c90ded0c18e160cb34cc2e1387c49a5c656478ced7",
-    "breaches.png": "2c5e811d47f76756264926e633e0eababda54a239232aab689ed9c30d7d50ce1",
-    "dm_tests.csv": "525878711b175ecb993b96a153d91a165475eafae564002247e71643e5d9470e",
-    "metrics.json": "7d226851b620af9419461a03e577f2b6b7d0070289514c6742a7ab2bb7bd78aa",
-    "pinball_losses.csv": "9d5fd680210830704cefcc954cbacc4ec8ac72738d425b09276782334dd4d775",
-    "scale_sanity.json": "8a71b6d08fd679efb055de74f4d28c0d802755a83234ee68ef021bb4f45d03e8",
-    "tail_risk_attribution.csv": "dc3cc808224f0c438f28c3640d337fd347fa0a376c234574d32f20caf8bebd4a",
-    "tail_risk_attribution_timeseries.csv": "04f00ac0631894e3ac7a0ef98537f081ad1aae96d5fdce488747d54200be5fdd",
-    "tail_risk_attribution_timeseries.png": "511028c1c5b0e4257115c0e9bf353195688e1c667fe4d0c86f2df4f01942eaf2",
-    "var_es_timeseries.csv": "3766d6ad9d11cedc0873ff9247cf2a271b8a415d700c6019b0f74b1a4dfb6e5b",
-    "var_forecasts.png": "65722fdb4053c13a2e33284ac914ebe63dcca46adc9e851f220fb7a83457ae82",
-    "vine_model_card_gas.json": "41132279fc2add5883c6da7dab985c9021f949864ea8c27f252f451b6b968bd2",
-    "vine_model_card_static.json": "fcde24aead91094005a72959ecf4cf98df00d8ec3b83fe55e7579d6a9562ef67"
+    "backtest_summary.csv": "99501676661ee3582e31189fcd23cbefbb489b38397280a6dd523f51b166467c",
+    "breaches.png": "31e77f84c4c8d64e6cbb4d6fdf2e10c85ce2773bc50f2f1d88e215eab821d1ad",
+    "dm_tests.csv": "e9464e905e83e2221b06830f3b61d90d79b8cb230cf547fed3ff2f467685cde3",
+    "metrics.json": "6f4ae292e4756251ec373ffc21f72991c49d8bbad8422d0681b8285e1366adc8",
+    "pinball_losses.csv": "2987c83b7ee9f3e8d04587fae785c23d97ea9228f1315a3d9786655867246a76",
+    "scale_sanity.json": "2ac76f81a348ba8e341048390aae4433cb7ab6bf34fa6b8e3c3c7263d0194bf5",
+    "tail_risk_attribution.csv": "f9cb83d3a215cf57e461c4b619d2aa91a28ed0d2737cadfb54947cb4645cf86b",
+    "tail_risk_attribution_timeseries.csv": "3bd3fb752154d98250964ded567786c3c967632ddad4feb82e7568e26898b33c",
+    "tail_risk_attribution_timeseries.png": "eb268f9ef9a0b7dc9386176b0d07a3b531c652ae17348186e574222471769479",
+    "var_es_timeseries.csv": "9228b7001a74d39643015d6e4ff6d1e3f5d07c6bdf773f8fae6beb16e35942dc",
+    "var_forecasts.png": "b9a9e1eead159ba33c9d1d2092b445df026f3ff11eaa666c91f450b8037fae40",
+    "vine_model_card_gas.json": "fa0b47e9af97dabb627671f8c3584ea1875c2cb9987b49c51d62a29cb443163c",
+    "vine_model_card_static.json": "e140bd10307e8dbd0dd39dad28188622b79dc4f2be4fcde199cc525e30f4962d"
   }
 }

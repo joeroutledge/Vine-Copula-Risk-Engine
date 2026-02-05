@@ -4,18 +4,18 @@
     {
       "method": "static_vine",
       "alpha": 0.01,
-      "vine_median_var": -0.013105580907014873,
+      "vine_median_var": -0.013201083951664399,
       "hs_median_var": -0.013185235335625156,
-      "ratio": 0.9939588163136486,
+      "ratio": 1.0012019972064072,
       "threshold": 2.0,
       "passed": true
     },
     {
       "method": "gas_vine",
       "alpha": 0.01,
-      "vine_median_var": -0.01239013241860628,
+      "vine_median_var": -0.01243054804172212,
       "hs_median_var": -0.013185235335625156,
-      "ratio": 0.9396974800388591,
+      "ratio": 0.9427626982232203,
       "threshold": 2.0,
       "passed": true
     }

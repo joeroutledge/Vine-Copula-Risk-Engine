@@ -16,6 +16,12 @@
   ],
   "n_sim": 1000,
   "gas_update_every": 1,
+  "determinism": {
+    "determinism_mode": "strict",
+    "numpy_seeded": true,
+    "pyvinecopulib_seeded": true,
+    "note": "Full determinism achieved via NumPy seeding and pyvinecopulib seeds parameter. Same seed produces identical simulations."
+  },
   "methods": {
     "hs": {
       "0.01": {
@@ -112,29 +118,29 @@
         "method": "static_vine",
         "alpha": 0.01,
         "n_obs": 4327,
-        "n_breaches": 47,
-        "hit_rate": 0.01086202911948232,
+        "n_breaches": 49,
+        "hit_rate": 0.011324243124566674,
         "expected_rate": 0.01,
-        "kupiec_stat": 0.3159252526571663,
-        "kupiec_pval": 0.5740667709598466,
-        "chris_stat": 2.5792602095855273,
-        "chris_pval": 0.108272253902991,
-        "es_shortfall_ratio": 1.0179960643534072,
-        "pinball_loss": 0.00019155858206563152
+        "kupiec_stat": 0.73502087803422,
+        "kupiec_pval": 0.3912605518798894,
+        "chris_stat": 2.3252195272435756,
+        "chris_pval": 0.12729226126853543,
+        "es_shortfall_ratio": 1.058613339933841,
+        "pinball_loss": 0.00019474750478859712
       },
       "0.05": {
         "method": "static_vine",
         "alpha": 0.05,
         "n_obs": 4327,
-        "n_breaches": 197,
-        "hit_rate": 0.04552807950080887,
+        "n_breaches": 188,
+        "hit_rate": 0.04344811647792928,
         "expected_rate": 0.05,
-        "kupiec_stat": 1.8756106270029704,
-        "kupiec_pval": 0.1708338683722228,
-        "chris_stat": 2.681422414512781,
-        "chris_pval": 0.1015250084858419,
-        "es_shortfall_ratio": 1.009434741782501,
-        "pinball_loss": 0.0006552573201611078
+        "kupiec_stat": 4.083804610359039,
+        "kupiec_pval": 0.043296066600885585,
+        "chris_stat": 3.8110239380278017,
+        "chris_pval": 0.050916315422511516,
+        "es_shortfall_ratio": 1.0230709590242,
+        "pinball_loss": 0.0006570727883849585
       }
     },
     "gas_vine": {
@@ -142,29 +148,29 @@
         "method": "gas_vine",
         "alpha": 0.01,
         "n_obs": 4327,
-        "n_breaches": 58,
-        "hit_rate": 0.013404206147446267,
+        "n_breaches": 51,
+        "hit_rate": 0.011786457129651028,
         "expected_rate": 0.01,
-        "kupiec_stat": 4.576789548525312,
-        "kupiec_pval": 0.03240787924101929,
-        "chris_stat": 3.8320749001629792,
-        "chris_pval": 0.05028065257498526,
-        "es_shortfall_ratio": 1.053693144228232,
-        "pinball_loss": 0.0001935493677242328
+        "kupiec_stat": 1.31929720514961,
+        "kupiec_pval": 0.25071821933149496,
+        "chris_stat": 2.088909925372036,
+        "chris_pval": 0.14837190554286916,
+        "es_shortfall_ratio": 1.0727728638708478,
+        "pinball_loss": 0.00019259071565148065
       },
       "0.05": {
         "method": "gas_vine",
         "alpha": 0.05,
         "n_obs": 4327,
-        "n_breaches": 220,
-        "hit_rate": 0.05084354055927895,
+        "n_breaches": 233,
+        "hit_rate": 0.053847931592327244,
         "expected_rate": 0.05,
-        "kupiec_stat": 0.064476991154379,
-        "kupiec_pval": 0.7995548915867833,
-        "chris_stat": 2.053201907739094,
-        "chris_pval": 0.15188646738186462,
-        "es_shortfall_ratio": 1.023206563678112,
-        "pinball_loss": 0.0006517637122648503
+        "kupiec_stat": 1.3172311963580796,
+        "kupiec_pval": 0.25108956952091566,
+        "chris_stat": 0.9837416120351463,
+        "chris_pval": 0.32127680493579036,
+        "es_shortfall_ratio": 1.0237477063774658,
+        "pinball_loss": 0.0006571654607794173
       }
     }
   }

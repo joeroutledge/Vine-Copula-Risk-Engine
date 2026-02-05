@@ -2,12 +2,20 @@
   "dim": 5,
   "vine_type": "D-vine",
   "variable_order": [
-    "IEF",
-    "AGG",
-    "GLD",
     "EEM",
-    "EFA"
+    "EFA",
+    "GLD",
+    "AGG",
+    "IEF"
   ],
+  "order_indices": [
+    1,
+    2,
+    3,
+    0,
+    4
+  ],
+  "order_source": "train_only_fixed",
   "trunc_lvl": 4,
   "is_full_vine": true,
   "total_pair_copulas": 10,
@@ -22,72 +30,6 @@
     {
       "tree": 1,
       "edge_index": 0,
-      "conditioned": [
-        "IEF",
-        "AGG"
-      ],
-      "conditioning": [],
-      "family": "student",
-      "rotation": 0,
-      "parameters": [
-        0.830783,
-        4.5088
-      ],
-      "kendall_tau": 0.624214,
-      "is_dynamic": true,
-      "gas_params": {
-        "omega": 0.251794,
-        "A": 0.109787,
-        "B": 1.05714,
-        "B_effective": 0.784567
-      },
-      "rho_static": 0.830783,
-      "nu_fixed": 4.5088
-    },
-    {
-      "tree": 1,
-      "edge_index": 1,
-      "conditioned": [
-        "AGG",
-        "GLD"
-      ],
-      "conditioning": [],
-      "family": "frank",
-      "rotation": 0,
-      "parameters": [
-        0.36737071289635165
-      ],
-      "kendall_tau": 0.040764,
-      "is_dynamic": false
-    },
-    {
-      "tree": 1,
-      "edge_index": 2,
-      "conditioned": [
-        "GLD",
-        "EEM"
-      ],
-      "conditioning": [],
-      "family": "student",
-      "rotation": 0,
-      "parameters": [
-        0.24341,
-        10.6263
-      ],
-      "kendall_tau": 0.156532,
-      "is_dynamic": true,
-      "gas_params": {
-        "omega": 0.011721,
-        "A": 0.026183,
-        "B": 1.822595,
-        "B_effective": 0.949097
-      },
-      "rho_static": 0.24341,
-      "nu_fixed": 10.6263
-    },
-    {
-      "tree": 1,
-      "edge_index": 3,
       "conditioned": [
         "EEM",
         "EFA"
@@ -111,116 +53,188 @@
       "nu_fixed": 9.2291
     },
     {
+      "tree": 1,
+      "edge_index": 1,
+      "conditioned": [
+        "EFA",
+        "GLD"
+      ],
+      "conditioning": [],
+      "family": "student",
+      "rotation": 0,
+      "parameters": [
+        0.314464,
+        8.5834
+      ],
+      "kendall_tau": 0.20365,
+      "is_dynamic": true,
+      "gas_params": {
+        "omega": 0.023193,
+        "A": 0.044279,
+        "B": 1.662335,
+        "B_effective": 0.930531
+      },
+      "rho_static": 0.314464,
+      "nu_fixed": 8.5834
+    },
+    {
+      "tree": 1,
+      "edge_index": 2,
+      "conditioned": [
+        "GLD",
+        "AGG"
+      ],
+      "conditioning": [],
+      "family": "frank",
+      "rotation": 0,
+      "parameters": [
+        0.3673707130006121
+      ],
+      "kendall_tau": 0.040764,
+      "is_dynamic": false
+    },
+    {
+      "tree": 1,
+      "edge_index": 3,
+      "conditioned": [
+        "AGG",
+        "IEF"
+      ],
+      "conditioning": [],
+      "family": "student",
+      "rotation": 0,
+      "parameters": [
+        0.830783,
+        4.5088
+      ],
+      "kendall_tau": 0.624214,
+      "is_dynamic": true,
+      "gas_params": {
+        "omega": 0.251794,
+        "A": 0.109787,
+        "B": 1.05714,
+        "B_effective": 0.784567
+      },
+      "rho_static": 0.830783,
+      "nu_fixed": 4.5088
+    },
+    {
       "tree": 2,
       "edge_index": 0,
       "conditioned": [
-        "IEF",
+        "EEM",
         "GLD"
       ],
       "conditioning": [
-        "AGG"
+        "EFA"
       ],
-      "family": "gumbel",
-      "rotation": 270,
+      "family": "frank",
+      "rotation": 0,
       "parameters": [
-        1.0197252203325962
+        -0.24406909269404736
       ],
-      "kendall_tau": -0.019344
+      "kendall_tau": -0.027103
     },
     {
       "tree": 2,
       "edge_index": 1,
       "conditioned": [
-        "AGG",
-        "EEM"
+        "EFA",
+        "AGG"
       ],
       "conditioning": [
         "GLD"
       ],
       "family": "clayton",
-      "rotation": 90,
+      "rotation": 270,
       "parameters": [
-        0.2204305028513711
+        0.15177388707391534
       ],
-      "kendall_tau": -0.099274
+      "kendall_tau": -0.070534
     },
     {
       "tree": 2,
       "edge_index": 2,
       "conditioned": [
         "GLD",
-        "EFA"
+        "IEF"
       ],
       "conditioning": [
-        "EEM"
+        "AGG"
       ],
-      "family": "frank",
-      "rotation": 0,
+      "family": "gumbel",
+      "rotation": 90,
       "parameters": [
-        1.2660392032070569
+        1.0197252203324798
       ],
-      "kendall_tau": 0.138476
+      "kendall_tau": -0.019344
     },
     {
       "tree": 3,
       "edge_index": 0,
       "conditioned": [
-        "IEF",
-        "EEM"
+        "EEM",
+        "AGG"
       ],
       "conditioning": [
-        "AGG",
+        "EFA",
         "GLD"
       ],
-      "family": "student",
-      "rotation": 0,
+      "family": "gumbel",
+      "rotation": 90,
       "parameters": [
-        -0.217358214719705,
-        6.066641588937993
+        1.0717067048182707
       ],
-      "kendall_tau": -0.139488
+      "kendall_tau": -0.066909
     },
     {
       "tree": 3,
       "edge_index": 1,
       "conditioned": [
-        "AGG",
-        "EFA"
+        "EFA",
+        "IEF"
       ],
       "conditioning": [
         "GLD",
-        "EEM"
+        "AGG"
       ],
-      "family": "clayton",
+      "family": "student",
       "rotation": 0,
       "parameters": [
-        0.0662218056837333
+        -0.1866662613401533,
+        7.493465314037075
       ],
-      "kendall_tau": 0.03205
+      "kendall_tau": -0.119537
     },
     {
       "tree": 4,
       "edge_index": 0,
       "conditioned": [
-        "IEF",
-        "EFA"
+        "EEM",
+        "IEF"
       ],
       "conditioning": [
-        "AGG",
+        "EFA",
         "GLD",
-        "EEM"
+        "AGG"
       ],
-      "family": "gumbel",
-      "rotation": 270,
+      "family": "frank",
+      "rotation": 0,
       "parameters": [
-        1.0209153609360078
+        -0.701407792700173
       ],
-      "kendall_tau": -0.020487
+      "kendall_tau": -0.077554
     }
   ],
   "gas_scope": "tree1_elliptical_only",
   "gas_update_every": 5,
   "dynamic_edge_count": 3,
   "static_tree1_edge_count": 1,
-  "higher_tree_dynamics": "static"
+  "higher_tree_dynamics": "static",
+  "determinism": {
+    "determinism_mode": "strict",
+    "numpy_seeded": true,
+    "pyvinecopulib_seeded": true,
+    "note": "Full determinism achieved via NumPy seeding and pyvinecopulib seeds parameter. Same seed produces identical simulations."
+  }
 }
