@@ -165,14 +165,23 @@ def compute_component_es(
         percent_contribution = np.full(n_assets, np.nan)
 
     # Build output DataFrame
+    # SIGN CONVENTION:
+    # - component_es, portfolio_var, portfolio_es are in LOSS SPACE (positive = loss)
+    # - component_es_return, portfolio_var_return, portfolio_es_return are in RETURN SPACE (negative = loss)
+    # Both conventions are exported for clarity.
     df = pd.DataFrame({
         "alpha": [alpha] * n_assets,
         "asset": asset_names,
         "weight": weights,
+        # Loss-space (positive when portfolio loses)
         "component_es": component_es,
         "percent_contribution": percent_contribution,
         "portfolio_var": [portfolio_var] * n_assets,
         "portfolio_es": [portfolio_es] * n_assets,
+        # Return-space (negative when portfolio loses)
+        "component_es_return": -component_es,
+        "portfolio_var_return": [-portfolio_var] * n_assets,
+        "portfolio_es_return": [-portfolio_es] * n_assets,
     })
 
     return df
@@ -233,11 +242,18 @@ def compute_component_es_single(
     else:
         percent_contribution = np.full(n_assets, np.nan)
 
+    # SIGN CONVENTION: Return both loss-space and return-space equivalents
     return {
+        # Loss-space (positive when portfolio loses)
         "component_es": component_es,
         "percent_contribution": percent_contribution,
         "portfolio_var": portfolio_var,
         "portfolio_es": portfolio_es,
+        # Return-space (negative when portfolio loses)
+        "component_es_return": -component_es,
+        "portfolio_var_return": -portfolio_var,
+        "portfolio_es_return": -portfolio_es,
+        # Metadata
         "n_tail": n_tail,
     }
 
@@ -312,10 +328,16 @@ def compute_component_es_timeseries(
                     "alpha": alpha,
                     "asset": asset,
                     "weight": weights[i],
+                    # Loss-space (positive when portfolio loses)
                     "component_es": result["component_es"][i],
                     "percent_contribution": result["percent_contribution"][i],
                     "portfolio_var": result["portfolio_var"],
                     "portfolio_es": result["portfolio_es"],
+                    # Return-space (negative when portfolio loses)
+                    "component_es_return": result["component_es_return"][i],
+                    "portfolio_var_return": result["portfolio_var_return"],
+                    "portfolio_es_return": result["portfolio_es_return"],
+                    # Metadata
                     "n_tail": result["n_tail"],
                     "n_sim": n_sim,
                 })

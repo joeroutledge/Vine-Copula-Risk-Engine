@@ -141,6 +141,8 @@ class TestComponentESTimeseries:
         expected_cols = {
             "date", "alpha", "asset", "weight", "component_es",
             "percent_contribution", "portfolio_var", "portfolio_es",
+            # Return-space equivalents (sign conventions)
+            "component_es_return", "portfolio_var_return", "portfolio_es_return",
             "n_tail", "n_sim"
         }
         assert set(result.columns) == expected_cols

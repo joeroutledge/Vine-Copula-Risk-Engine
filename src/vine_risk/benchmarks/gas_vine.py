@@ -44,6 +44,7 @@ from ..core.gas import (
 from ..core.tail_dependence import lower_tail_dependence_t
 from ..core.pvc_compat import make_dvine_structure, build_vine_from_pair_copulas, make_bicop_student
 from .static_vine import StaticDVineModel
+from ..utils.random import get_determinism_info
 
 
 class GASDVineModel(StaticDVineModel):
@@ -467,10 +468,33 @@ class GASDVineModel(StaticDVineModel):
         n_sim: int,
         t_idx: int = 0,
         use_antithetic: bool = False,
+        seeds: Optional[List[int]] = None,
     ) -> np.ndarray:
-        """Simulate from the GAS D-vine copula at time t."""
+        """
+        Simulate from the GAS D-vine copula at time t.
+
+        Parameters
+        ----------
+        n_sim : int
+            Number of simulations
+        t_idx : int
+            Time index for GAS state
+        use_antithetic : bool
+            Use antithetic variates (not implemented)
+        seeds : List[int], optional
+            Seeds for pyvinecopulib RNG. If provided, simulation is
+            deterministic. Use make_pvc_seeds() to generate these.
+
+        Returns
+        -------
+        np.ndarray
+            Simulated uniforms (n_sim x d)
+        """
         vine = self.build_vine_at_time(t_idx)
-        return vine.simulate(n_sim)
+        if seeds is not None:
+            return vine.simulate(n_sim, seeds=seeds)
+        else:
+            return vine.simulate(n_sim)
 
     def get_model_card(self) -> dict:
         """
@@ -497,6 +521,7 @@ class GASDVineModel(StaticDVineModel):
         card["dynamic_edge_count"] = dynamic_count
         card["static_tree1_edge_count"] = static_count
         card["higher_tree_dynamics"] = "static"
+        card["determinism"] = get_determinism_info()
 
         # Update Tree-1 pair copulas based on dynamic/static status
         for pc in card["pair_copulas"]:

@@ -62,6 +62,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from vine_risk.benchmarks.static_vine import StaticDVineModel
 from vine_risk.benchmarks.gas_vine import GASDVineModel
+from vine_risk.utils.random import make_pvc_seeds, set_seed, get_determinism_info
 from vine_risk.benchmarks.dcc_garch import DCCGARCHModel
 from vine_risk.core.copulas import clip01
 from vine_risk.core.tail_dependence import lower_tail_dependence_t
@@ -438,8 +439,11 @@ def vine_copula_var_es(
         # Set seed for reproducibility per time step
         np.random.seed(seed + t)
 
-        # Simulate from copula at time t
-        U_sim = model.simulate(n_sim=n_sim, t_idx=t)
+        # Generate deterministic seeds for pyvinecopulib
+        pvc_seeds = make_pvc_seeds(seed, t_idx=t)
+
+        # Simulate from copula at time t with deterministic seeding
+        U_sim = model.simulate(n_sim=n_sim, t_idx=t, seeds=pvc_seeds)
 
         # Invert marginals: r = sigma * t(nu).ppf(u)
         # No extra scaling factor - consistent with PIT
@@ -992,9 +996,16 @@ def main():
     print("[5/5] Vine copula models ...", flush=True)
     U_train = U.iloc[:train_end]
 
+    # IMPORTANT: Compute vine ordering from U_train only to prevent OOS leakage.
+    # The ordering determines the D-vine structure (which pairs of variables
+    # are directly connected). Using full U would leak future dependence info.
+    fixed_order = StaticDVineModel.compute_order_from_data(U_train)
+    print(f"       Vine order (from train): {fixed_order}")
+
     # Static D-vine (nu estimated per-edge via MLE)
+    # Pass fixed_order to prevent order being computed from full U
     print("       Fitting Static D-vine ...", flush=True)
-    static_model = StaticDVineModel(U, nu_fixed=None)
+    static_model = StaticDVineModel(U, nu_fixed=None, fixed_order=fixed_order)
     static_model.fit(U_train)
     if refit_freq > 0:
         print(f"       Rolling refit enabled: freq={refit_freq}, window={refit_window}")
@@ -1004,8 +1015,9 @@ def main():
         collect_simulations=False)
 
     # GAS D-vine (nu estimated per-edge via MLE)
+    # Pass fixed_order to prevent order being computed from full U
     print("       Fitting GAS D-vine ...", flush=True)
-    gas_model = GASDVineModel(U, nu_fixed=None, gas_update_every=gas_update_every)
+    gas_model = GASDVineModel(U, nu_fixed=None, fixed_order=fixed_order, gas_update_every=gas_update_every)
     gas_model.fit(U_train, fit_gas=True)
     gas_results, gas_sim_returns_by_date = vine_copula_var_es(
         gas_model, garch_info, returns, weights, train_end, n_sim, alphas,
@@ -1039,9 +1051,10 @@ def main():
     # Use the last OOS time step for attribution snapshot
     t_attrib = n - 1
     np.random.seed(seed + 1000 + t_attrib)  # Same seed scheme as gas_vine
+    pvc_seeds_attrib = make_pvc_seeds(seed + 1000, t_idx=t_attrib)
 
-    # Simulate from GAS D-vine at last time step
-    U_sim_attrib = gas_model.simulate(n_sim=n_sim, t_idx=t_attrib)
+    # Simulate from GAS D-vine at last time step with deterministic seeding
+    U_sim_attrib = gas_model.simulate(n_sim=n_sim, t_idx=t_attrib, seeds=pvc_seeds_attrib)
 
     # Invert marginals: r = sigma * t(nu).ppf(u)
     from scipy.stats import t as tdist
@@ -1235,6 +1248,7 @@ def main():
         "alphas": list(alphas),
         "n_sim": n_sim,
         "gas_update_every": gas_update_every,
+        "determinism": get_determinism_info(),
         "methods": metrics_all,
     }
     with open(out_dir / "metrics.json", "w") as f:

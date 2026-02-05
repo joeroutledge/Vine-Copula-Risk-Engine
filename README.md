@@ -78,6 +78,23 @@ The GAS filter implementation in `src/vine_risk/core/gas.py:gas_filter()` is use
 
 All forecasts use **strictly lagged** information. No lookahead.
 
+## Sign Conventions
+
+This project uses two equivalent representations for risk metrics:
+
+| Space | VaR/ES | Interpretation |
+|-------|--------|----------------|
+| **Loss-space** | `portfolio_var`, `portfolio_es`, `component_es` | Positive values = portfolio loses money |
+| **Return-space** | `portfolio_var_return`, `portfolio_es_return`, `component_es_return` | Negative values = portfolio loses money |
+
+**Conversion**: `return-space = -loss-space`
+
+Both are exported in attribution files for clarity. The Euler decomposition holds in both spaces:
+- `sum(component_es) = portfolio_es` (loss-space)
+- `sum(component_es_return) = portfolio_es_return` (return-space)
+
+VaR/ES forecasts in `var_es_timeseries.csv` use return-space (negative for left tail).
+
 ## What this repo explicitly does NOT do
 
 - No trading strategy, no portfolio signal layering, no Sharpe claims.

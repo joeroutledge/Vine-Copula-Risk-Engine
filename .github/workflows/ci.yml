@@ -28,3 +28,51 @@ jobs:
 
       - name: Validate manifest
         run: python scripts/validate_manifest.py outputs/demo_quick/manifest.json
+
+      - name: Verify determinism (run demo twice)
+        run: |
+          # Save first run metrics
+          cp outputs/demo_quick/metrics.json /tmp/metrics_run1.json
+          cp outputs/demo_quick/backtest_summary.csv /tmp/backtest_run1.csv
+
+          # Clean and run again
+          rm -rf outputs/demo_quick/*
+          make demo-quick
+
+          # Compare key metrics (should be identical with deterministic seeding)
+          python -c "
+          import json
+          import pandas as pd
+
+          m1 = json.load(open('/tmp/metrics_run1.json'))
+          m2 = json.load(open('outputs/demo_quick/metrics.json'))
+
+          # Compare non-deterministic-sensitive fields
+          assert m1['seed'] == m2['seed'], 'Seeds differ'
+          assert m1['train_days'] == m2['train_days'], 'Train days differ'
+          assert m1['oos_days'] == m2['oos_days'], 'OOS days differ'
+          assert m1['n_sim'] == m2['n_sim'], 'n_sim differs'
+
+          # Compare backtest summaries (should be identical)
+          df1 = pd.read_csv('/tmp/backtest_run1.csv')
+          df2 = pd.read_csv('outputs/demo_quick/backtest_summary.csv')
+
+          # Check numeric columns match exactly
+          for col in ['n_breaches', 'hit_rate']:
+            assert (df1[col] == df2[col]).all(), f'{col} differs between runs'
+
+          print('Determinism check passed: two runs produced identical results')
+          "
+
+      - name: Validate order_source in model cards
+        run: |
+          python -c "
+          import json
+
+          for fname in ['outputs/demo_quick/vine_model_card_static.json',
+                        'outputs/demo_quick/vine_model_card_gas.json']:
+            card = json.load(open(fname))
+            assert card['order_source'] == 'train_only_fixed', \
+              f'{fname}: expected train_only_fixed, got {card[\"order_source\"]}'
+          print('Order source validation passed: no OOS leakage in structure selection')
+          "

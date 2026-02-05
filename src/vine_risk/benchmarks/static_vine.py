@@ -62,10 +62,16 @@ class StaticDVineModel:
         self.nu_fixed = nu_fixed
         self.estimate_nu = nu_fixed is None
 
+        # IMPORTANT: Track order source for OOS leakage prevention.
+        # If fixed_order is provided, the order was computed externally
+        # (ideally from training data only). If not, order is inferred
+        # from the full U, which may leak OOS information.
         if fixed_order is not None:
             self.order = list(fixed_order)
+            self._order_source = "train_only_fixed"
         else:
             self.order = self._determine_order(U)
+            self._order_source = "inferred_from_full_u"
 
         self.U_ordered = U.iloc[:, self.order]
         self.static_params: Dict[Tuple[int, int], Tuple[float, float]] = {}
@@ -73,6 +79,26 @@ class StaticDVineModel:
 
     def _determine_order(self, U: pd.DataFrame) -> List[int]:
         """Determine D-vine order using greedy Kendall's tau algorithm."""
+        return self.compute_order_from_data(U)
+
+    @staticmethod
+    def compute_order_from_data(U: pd.DataFrame) -> List[int]:
+        """
+        Compute D-vine order using greedy Kendall's tau algorithm.
+
+        This is exposed as a static method to allow external code to compute
+        ordering from training data only, preventing OOS leakage.
+
+        Parameters
+        ----------
+        U : pd.DataFrame
+            Uniform marginals (PIT)
+
+        Returns
+        -------
+        List[int]
+            Column indices specifying D-vine variable order
+        """
         d = U.shape[1]
         tau_matrix = np.zeros((d, d))
 
@@ -235,6 +261,7 @@ class StaticDVineModel:
         n_sim: int,
         t_idx: int = 0,
         use_antithetic: bool = False,
+        seeds: Optional[List[int]] = None,
     ) -> np.ndarray:
         """
         Simulate from the static vine copula.
@@ -247,6 +274,9 @@ class StaticDVineModel:
             Time index (ignored for static model, kept for interface compat)
         use_antithetic : bool
             Use antithetic variates for variance reduction
+        seeds : List[int], optional
+            Seeds for pyvinecopulib RNG. If provided, simulation is
+            deterministic. Use make_pvc_seeds() to generate these.
 
         Returns
         -------
@@ -254,7 +284,10 @@ class StaticDVineModel:
             Simulated uniforms (n_sim x d)
         """
         vine = self._get_vine()
-        return vine.simulate(n_sim)
+        if seeds is not None:
+            return vine.simulate(n_sim, seeds=seeds)
+        else:
+            return vine.simulate(n_sim)
 
     def predict_tree1_rhos(self, t_idx: int = 0) -> np.ndarray:
         """Get Tree-1 correlations (static, ignores t_idx)."""
@@ -348,6 +381,8 @@ class StaticDVineModel:
             "dim": d,
             "vine_type": "D-vine",
             "variable_order": ordered_assets,
+            "order_indices": self.order,
+            "order_source": self._order_source,
             "trunc_lvl": trunc_lvl,
             "is_full_vine": is_full,
             "total_pair_copulas": total_pairs,
