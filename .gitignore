@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+__MACOSX/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Archives / large artifacts
+outputs/**/Archive*.zip
+*.tgz
+*.tar.gz
