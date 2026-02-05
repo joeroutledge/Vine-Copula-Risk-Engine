@@ -33,8 +33,14 @@ from typing import Dict, List, Tuple, Optional
 from scipy.stats import t as tdist
 from scipy.optimize import minimize
 
-from ..core.copulas import log_student_t_copula_density, clip01
-from ..core.gas import GASParameters, GASFilterState, gas_score_theta_t, scale_opg, gas_filter
+from ..core.copulas import clip01
+from ..core.gas import (
+    GASParameters,
+    GASFilterState,
+    gas_filter,
+    gas_neg_loglik,
+    GAS_FILTER_DEFAULTS,
+)
 from ..core.tail_dependence import lower_tail_dependence_t
 from ..core.pvc_compat import make_dvine_structure, build_vine_from_pair_copulas, make_bicop_student
 from .static_vine import StaticDVineModel
@@ -75,10 +81,12 @@ class GASDVineModel(StaticDVineModel):
         U: pd.DataFrame,
         nu_fixed: Optional[float] = None,
         fixed_order: Optional[List[int]] = None,
+        gas_update_every: int = 1,
     ):
         super().__init__(U, nu_fixed=nu_fixed, fixed_order=fixed_order)
         self.tree1_models: Dict[int, Dict] = {}
         self.tree1_is_dynamic: Dict[int, bool] = {}  # Track dynamic vs static edges
+        self.gas_update_every = gas_update_every  # GAS state update frequency
 
     def fit(
         self,
@@ -91,6 +99,13 @@ class GASDVineModel(StaticDVineModel):
         Step 1: Fit static vine (family selection via BIC).
         Step 2: For Tree-1 edges with ELLIPTICAL families, add GAS dynamics.
                 Non-elliptical edges remain static.
+
+        Parameters
+        ----------
+        U_train : pd.DataFrame
+            Training data (PIT uniforms).
+        fit_gas : bool
+            Whether to fit GAS dynamics for elliptical Tree-1 edges.
 
         Returns
         -------
@@ -247,33 +262,32 @@ class GASDVineModel(StaticDVineModel):
         nu: float,
         theta_init: float,
     ) -> Tuple[GASParameters, np.ndarray, np.ndarray, GASFilterState]:
-        """Fit GAS model for a single edge."""
+        """
+        Fit GAS model for a single edge.
+
+        IMPORTANT: Uses gas_neg_loglik() which internally calls gas_filter(),
+        ensuring the recursion used for estimation is IDENTICAL to the
+        recursion used for out-of-sample evaluation. This is the single
+        source of truth for GAS dynamics.
+
+        The filter kwargs (opg_decay, score_cap, etc.) are taken from
+        GAS_FILTER_DEFAULTS, with update_every overridden by self.gas_update_every.
+        """
         z1 = tdist.ppf(u1, nu)
         z2 = tdist.ppf(u2, nu)
-        n = len(u1)
+
+        # Build kwargs with update_every from model config
+        filter_kwargs = {**GAS_FILTER_DEFAULTS, "update_every": self.gas_update_every}
 
         def neg_log_lik(params):
             omega, A, B = params
-            B_eff = np.tanh(B)
-
-            theta = theta_init
-            ll_sum = 0.0
-            opg = 1.0
-            lam = 0.95
-
-            for t in range(n):
-                rho = np.tanh(theta)
-                ll = log_student_t_copula_density(z1[t], z2[t], rho, nu)
-                ll_sum += ll
-
-                score = gas_score_theta_t(z1[t], z2[t], theta, nu)
-                opg = lam * opg + (1 - lam) * score**2
-                scaled_score = scale_opg(score, opg)
-
-                theta = omega + A * scaled_score + B_eff * theta
-                theta = np.clip(theta, -3.8, 3.8)
-
-            return -ll_sum
+            # Uses gas_filter internally with same kwargs
+            return gas_neg_loglik(
+                z1, z2, omega, A, B, nu,
+                theta_init=theta_init,
+                opg_init=1.0,
+                **filter_kwargs,
+            )
 
         x0 = [theta_init * 0.01, 0.1, 2.0]
         bounds = [(-1.0, 1.0), (0.0, 1.0), (0.0, 5.0)]
@@ -287,11 +301,13 @@ class GASDVineModel(StaticDVineModel):
 
         gas_params = GASParameters(omega=omega, A=A, B=B)
 
-        # Compute paths using the unified gas_filter (single source of truth)
+        # Compute paths using gas_filter with SAME kwargs used in estimation
         theta_path, ll_path, _, final_state = gas_filter(
             z1, z2, gas_params, nu,
             theta_init=theta_init,
+            opg_init=1.0,
             return_final_state=True,
+            **filter_kwargs,
         )
 
         return gas_params, theta_path, ll_path, final_state
@@ -340,11 +356,14 @@ class GASDVineModel(StaticDVineModel):
             z1 = tdist.ppf(u1, nu)
             z2 = tdist.ppf(u2, nu)
 
+            # Use SAME kwargs as estimation for consistency
+            filter_kwargs = {**GAS_FILTER_DEFAULTS, "update_every": self.gas_update_every}
             _, ll_path, _, _ = gas_filter(
                 z1, z2, params, nu,
                 theta_init=theta_init,
                 opg_init=opg_init,
                 return_final_state=False,
+                **filter_kwargs,
             )
 
             tree1_ll += ll_path
@@ -474,6 +493,7 @@ class GASDVineModel(StaticDVineModel):
 
         # Add GAS scope summary
         card["gas_scope"] = "tree1_elliptical_only"
+        card["gas_update_every"] = self.gas_update_every
         card["dynamic_edge_count"] = dynamic_count
         card["static_tree1_edge_count"] = static_count
         card["higher_tree_dynamics"] = "static"

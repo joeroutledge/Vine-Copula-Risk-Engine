@@ -176,3 +176,148 @@ def compute_component_es(
     })
 
     return df
+
+
+def compute_component_es_single(
+    sim_returns: np.ndarray,
+    weights: np.ndarray,
+    alpha: float,
+) -> dict:
+    """
+    Compute component ES for a single time step (internal helper).
+
+    Returns dict with arrays for all assets plus scalars for portfolio metrics.
+    Handles edge cases gracefully (returns NaN if tail is empty).
+    """
+    n_sim, n_assets = sim_returns.shape
+
+    # Normalize weights
+    w_sum = np.sum(weights)
+    if w_sum == 0:
+        return None
+    weights = weights / w_sum
+
+    # Portfolio loss: L = -w'r (positive when losing)
+    portfolio_returns = sim_returns @ weights
+    portfolio_loss = -portfolio_returns
+
+    # VaR_alpha is the (1-alpha) quantile of loss
+    var_alpha_loss = np.quantile(portfolio_loss, 1 - alpha)
+
+    # Tail mask: L >= VaR (worst alpha fraction)
+    tail_mask = portfolio_loss >= var_alpha_loss
+    n_tail = int(np.sum(tail_mask))
+
+    # Handle edge case: guarantee at least 1 tail observation
+    if n_tail == 0:
+        # Use the single worst observation
+        worst_idx = np.argmax(portfolio_loss)
+        tail_mask = np.zeros(n_sim, dtype=bool)
+        tail_mask[worst_idx] = True
+        n_tail = 1
+
+    # Tail returns
+    tail_returns = sim_returns[tail_mask, :]
+
+    # Component ES: w_i * E[-r_i | tail]
+    mean_neg_returns_tail = -np.mean(tail_returns, axis=0)
+    component_es = weights * mean_neg_returns_tail
+
+    # Portfolio ES = sum of component ES
+    portfolio_es = np.sum(component_es)
+    portfolio_var = var_alpha_loss
+
+    # Percent contribution
+    if portfolio_es != 0:
+        percent_contribution = component_es / portfolio_es
+    else:
+        percent_contribution = np.full(n_assets, np.nan)
+
+    return {
+        "component_es": component_es,
+        "percent_contribution": percent_contribution,
+        "portfolio_var": portfolio_var,
+        "portfolio_es": portfolio_es,
+        "n_tail": n_tail,
+    }
+
+
+def compute_component_es_timeseries(
+    sim_returns_by_date: dict,
+    weights: np.ndarray,
+    alphas: List[float],
+    asset_names: List[str],
+    n_sim: int,
+) -> pd.DataFrame:
+    """
+    Compute component ES attribution over time for multiple alpha levels.
+
+    Parameters
+    ----------
+    sim_returns_by_date : dict
+        Mapping from date -> np.ndarray of shape (n_sim, n_assets).
+        Each array contains simulated asset returns for that date.
+    weights : np.ndarray
+        Portfolio weights (will be normalized).
+    alphas : list of float
+        VaR confidence levels (e.g., [0.01, 0.05]).
+    asset_names : list of str
+        Asset labels.
+    n_sim : int
+        Number of simulations per date (for recording).
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: date, alpha, asset, weight, component_es, percent_contribution,
+                 portfolio_var, portfolio_es, n_tail, n_sim
+        One row per (date, alpha, asset) combination.
+
+    Notes
+    -----
+    - Component ES is computed using the Euler decomposition for ES.
+    - Sum of component_es across assets equals portfolio_es (within MC error).
+    - Percent contributions sum to 1.0 (within MC error).
+    - If the tail set would be empty (tiny n_sim), at least one observation
+      is included to avoid NaN results.
+    """
+    weights = np.asarray(weights, dtype=np.float64).flatten()
+    w_sum = np.sum(weights)
+    if w_sum != 0:
+        weights = weights / w_sum
+
+    n_assets = len(asset_names)
+    rows = []
+
+    for date in sorted(sim_returns_by_date.keys()):
+        sim_returns = sim_returns_by_date[date]
+
+        if sim_returns is None or len(sim_returns) == 0:
+            continue
+
+        sim_returns = np.asarray(sim_returns, dtype=np.float64)
+
+        if sim_returns.shape[1] != n_assets:
+            continue
+
+        for alpha in alphas:
+            result = compute_component_es_single(sim_returns, weights, alpha)
+
+            if result is None:
+                continue
+
+            for i, asset in enumerate(asset_names):
+                rows.append({
+                    "date": date,
+                    "alpha": alpha,
+                    "asset": asset,
+                    "weight": weights[i],
+                    "component_es": result["component_es"][i],
+                    "percent_contribution": result["percent_contribution"][i],
+                    "portfolio_var": result["portfolio_var"],
+                    "portfolio_es": result["portfolio_es"],
+                    "n_tail": result["n_tail"],
+                    "n_sim": n_sim,
+                })
+
+    return pd.DataFrame(rows)

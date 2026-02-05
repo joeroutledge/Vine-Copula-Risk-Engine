@@ -37,7 +37,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -65,7 +65,7 @@ from vine_risk.benchmarks.gas_vine import GASDVineModel
 from vine_risk.benchmarks.dcc_garch import DCCGARCHModel
 from vine_risk.core.copulas import clip01
 from vine_risk.core.tail_dependence import lower_tail_dependence_t
-from vine_risk.model.tail_risk_attribution import compute_component_es
+from vine_risk.model.tail_risk_attribution import compute_component_es, compute_component_es_timeseries
 from vine_risk.model.dm_test import dm_test
 
 # ---------------------------------------------------------------------------
@@ -349,7 +349,8 @@ def vine_copula_var_es(
     label: str = "vine",
     refit_freq: int = 0,
     refit_window: int = 1000,
-) -> Dict[str, np.ndarray]:
+    collect_simulations: bool = False,
+) -> Tuple[Dict[str, np.ndarray], Optional[Dict]]:
     """
     Roll forward the vine copula model for one-step-ahead VaR/ES.
 
@@ -365,6 +366,15 @@ def vine_copula_var_es(
         Days between marginal/copula refits. 0 = no refit (default).
     refit_window : int
         Rolling window size for refit (default 1000 days).
+    collect_simulations : bool
+        If True, collect simulated returns at each OOS date for attribution.
+
+    Returns
+    -------
+    result : Dict[str, np.ndarray]
+        VaR/ES arrays for each alpha.
+    sim_returns_by_date : Dict[date, np.ndarray] or None
+        If collect_simulations=True, maps date -> (n_sim, n_assets) array.
     """
     from scipy.stats import t as tdist
 
@@ -378,6 +388,9 @@ def vine_copula_var_es(
     # Track current garch_info (may be updated on refit)
     current_garch_info = garch_info.copy()
     last_refit = train_end
+
+    # Collect simulations for attribution if requested
+    sim_returns_by_date = {} if collect_simulations else None
 
     for t in range(train_end, n):
         # Check if refit is needed
@@ -449,6 +462,11 @@ def vine_copula_var_es(
             orig_idx = model.order[j]
             r_aligned[:, orig_idx] = r_sim[:, j]
 
+        # Collect simulations for attribution
+        if collect_simulations:
+            date = returns.index[t]
+            sim_returns_by_date[date] = r_aligned.copy()
+
         port_sim = r_aligned @ weights
 
         for a in alphas:
@@ -458,7 +476,7 @@ def vine_copula_var_es(
             result[f"var_{a}"][t] = var_a
             result[f"es_{a}"][t] = es_a
 
-    return result
+    return result, sim_returns_by_date
 
 
 # ===========================================================================
@@ -777,6 +795,56 @@ def plot_breaches(
     plt.close(fig)
 
 
+def plot_attribution_timeseries(
+    attrib_df: pd.DataFrame,
+    asset_names: List[str],
+    alphas: Tuple[float, ...],
+    output_path: Path,
+):
+    """
+    Plot time-series of component ES percent contributions.
+
+    Creates a stacked area plot for each alpha level showing how each
+    asset's contribution to portfolio tail risk evolves over time.
+    """
+    if not HAS_MPL:
+        return
+
+    # Use up to 2 alpha levels (for readability)
+    plot_alphas = list(alphas)[:2]
+    n_alphas = len(plot_alphas)
+
+    fig, axes = plt.subplots(n_alphas, 1, figsize=(12, 4 * n_alphas), sharex=True)
+    if n_alphas == 1:
+        axes = [axes]
+
+    for ax, alpha in zip(axes, plot_alphas):
+        df_alpha = attrib_df[attrib_df["alpha"] == alpha].copy()
+        if len(df_alpha) == 0:
+            continue
+
+        # Pivot to get dates as index, assets as columns
+        pivot = df_alpha.pivot(index="date", columns="asset", values="percent_contribution")
+        pivot = pivot.reindex(columns=asset_names)  # Ensure consistent order
+        pivot = pivot.fillna(0)
+
+        # Plot as stacked area
+        dates = pivot.index
+        values = pivot.values
+
+        ax.stackplot(dates, values.T, labels=asset_names, alpha=0.8)
+        ax.set_ylabel("% of Portfolio ES")
+        ax.set_title(f"Component ES Contribution (alpha={alpha})")
+        ax.set_ylim(0, 1)
+        ax.legend(loc="upper left", fontsize=7, ncol=min(len(asset_names), 5))
+        ax.grid(True, alpha=0.3)
+
+    axes[-1].set_xlabel("Date")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 # ===========================================================================
 # SHA-256 manifest
 # ===========================================================================
@@ -851,6 +919,7 @@ def main():
     n_assets = cfg.get("n_assets", 5)  # use a subset for speed
     refit_freq = cfg.get("marginal_refit_freq_days", 0)
     refit_window = cfg.get("marginal_window_days", 1000)
+    gas_update_every = cfg.get("gas_update_every", 1)  # GAS state update frequency
 
     print("=" * 64)
     print("  ROLLING VaR/ES BACKTEST — Vine Copula Risk Engine Demo")
@@ -861,6 +930,7 @@ def main():
     print(f"  n_sim:        {n_sim}")
     print(f"  Alphas:       {alphas}")
     print(f"  n_assets:     {n_assets}")
+    print(f"  GAS update:   every {gas_update_every} day(s)")
     if refit_freq > 0:
         print(f"  Refit freq:   {refit_freq} days")
         print(f"  Refit window: {refit_window} days")
@@ -928,17 +998,19 @@ def main():
     static_model.fit(U_train)
     if refit_freq > 0:
         print(f"       Rolling refit enabled: freq={refit_freq}, window={refit_window}")
-    static_results = vine_copula_var_es(
+    static_results, _ = vine_copula_var_es(
         static_model, garch_info, returns, weights, train_end, n_sim, alphas,
-        seed, label="static_vine", refit_freq=refit_freq, refit_window=refit_window)
+        seed, label="static_vine", refit_freq=refit_freq, refit_window=refit_window,
+        collect_simulations=False)
 
     # GAS D-vine (nu estimated per-edge via MLE)
     print("       Fitting GAS D-vine ...", flush=True)
-    gas_model = GASDVineModel(U, nu_fixed=None)
+    gas_model = GASDVineModel(U, nu_fixed=None, gas_update_every=gas_update_every)
     gas_model.fit(U_train, fit_gas=True)
-    gas_results = vine_copula_var_es(
+    gas_results, gas_sim_returns_by_date = vine_copula_var_es(
         gas_model, garch_info, returns, weights, train_end, n_sim, alphas,
-        seed + 1000, label="gas_vine", refit_freq=refit_freq, refit_window=refit_window)
+        seed + 1000, label="gas_vine", refit_freq=refit_freq, refit_window=refit_window,
+        collect_simulations=True)  # Collect for time-series attribution
 
     # Print GAS diagnostics
     for edge, info in gas_model.tree1_models.items():
@@ -1004,6 +1076,26 @@ def main():
     attrib_df = pd.concat(attrib_rows, ignore_index=True)
     attrib_df.to_csv(out_dir / "tail_risk_attribution.csv", index=False)
     print(f"       Exported: tail_risk_attribution.csv ({len(attrib_df)} rows)")
+
+    # ------------------------------------------------------------------
+    # Time-series attribution (Component ES over time)
+    # ------------------------------------------------------------------
+    print("       Computing time-series attribution ...", flush=True)
+    attrib_ts_df = compute_component_es_timeseries(
+        sim_returns_by_date=gas_sim_returns_by_date,
+        weights=weights,
+        alphas=list(alphas),
+        asset_names=asset_cols,
+        n_sim=n_sim,
+    )
+    attrib_ts_df.to_csv(out_dir / "tail_risk_attribution_timeseries.csv", index=False)
+    print(f"       Exported: tail_risk_attribution_timeseries.csv ({len(attrib_ts_df)} rows)")
+
+    # Plot attribution timeseries
+    if HAS_MPL and len(attrib_ts_df) > 0:
+        plot_attribution_timeseries(attrib_ts_df, asset_cols, alphas,
+                                     out_dir / "tail_risk_attribution_timeseries.png")
+        print(f"       Exported: tail_risk_attribution_timeseries.png")
 
     print()
 
@@ -1142,6 +1234,7 @@ def main():
         "assets": asset_cols,
         "alphas": list(alphas),
         "n_sim": n_sim,
+        "gas_update_every": gas_update_every,
         "methods": metrics_all,
     }
     with open(out_dir / "metrics.json", "w") as f:

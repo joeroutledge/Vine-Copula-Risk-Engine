@@ -1,4 +1,4 @@
-.PHONY: demo-quick sensitivity-quick test clean install validate-manifest
+.PHONY: demo-quick demo-quick-weekly-gas sensitivity-quick test clean install validate-manifest
 
 install:
 	pip install -e ".[dev]"
@@ -10,6 +10,14 @@ demo-quick:
 	@echo "=== Verifying manifest hashes ==="
 	python scripts/validate_manifest.py outputs/demo_quick/
 	@echo "=== Done (quick demo) ==="
+
+demo-quick-weekly-gas:
+	@echo "=== vine_risk_xva_demo: Quick demo with weekly GAS updates ==="
+	python scripts/run_var_es_backtest.py --config configs/demo_quick_weekly_gas.yaml
+	@echo ""
+	@echo "=== Verifying manifest hashes ==="
+	python scripts/validate_manifest.py outputs/demo_quick_weekly_gas/
+	@echo "=== Done (weekly GAS demo) ==="
 
 sensitivity-quick:
 	@echo "=== vine_risk_xva_demo: Sensitivity analysis ==="
@@ -28,4 +36,5 @@ test:
 
 clean:
 	rm -rf outputs/demo_quick/*
+	rm -rf outputs/demo_quick_weekly_gas/*
 	rm -rf outputs/sensitivity_quick/*

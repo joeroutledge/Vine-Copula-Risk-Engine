@@ -166,10 +166,9 @@ PercentContrib_i:    ComponentES_i / Σ_j ComponentES_j
 1. **MC noise**: With finite simulations (e.g., 1000), components have sampling error.
 2. **Tail approximation**: The conditional expectation is computed on a discrete
    set of tail paths. For small alpha (e.g., 0.01), this may be only 10-50 paths.
-3. **Single time step**: The attribution is computed at the last OOS time step,
-   not averaged over time. Risk contributions vary with market conditions.
+3. **Model dependence**: Attribution depends on the copula model structure and parameters.
 
-**Output format** (tail_risk_attribution.csv):
+**Output format** (tail_risk_attribution.csv - snapshot at last OOS date):
 | Column | Description |
 |--------|-------------|
 | alpha | VaR confidence level (e.g., 0.01, 0.05) |
@@ -180,9 +179,68 @@ PercentContrib_i:    ComponentES_i / Σ_j ComponentES_j
 | portfolio_var | VaR_α of portfolio (positive loss) |
 | portfolio_es | ES_α = Σ_i component_es |
 
+### Time-Series Attribution (Component ES Over Time)
+
+**File**: `outputs/demo_quick/tail_risk_attribution_timeseries.csv`
+
+In addition to the snapshot attribution, the demo produces a time-series of
+component ES contributions for each OOS date. This allows tracking how each
+asset's contribution to portfolio tail risk evolves over time.
+
+**Schema** (tail_risk_attribution_timeseries.csv):
+| Column | Description |
+|--------|-------------|
+| date | OOS date |
+| alpha | VaR confidence level |
+| asset | Asset ticker |
+| weight | Portfolio weight |
+| component_es | Component ES for this (date, asset, alpha) |
+| percent_contribution | Fraction of portfolio ES from this asset |
+| portfolio_var | Portfolio VaR at this date |
+| portfolio_es | Portfolio ES at this date |
+| n_tail | Number of tail scenarios used |
+| n_sim | Total MC simulations |
+
+**Interpretation**:
+- Component ES is computed using the Euler decomposition: sum of component ES
+  equals portfolio ES (within MC error)
+- Percent contributions sum to 1.0 for each (date, alpha)
+- Changes in percent contributions reflect shifts in which assets drive tail risk
+
+**Limitations**:
+1. **MC noise**: Attribution at each date has sampling error proportional to 1/sqrt(n_sim)
+2. **Model dependence**: Results depend on copula structure and GAS state at each date
+3. **Not a forecast**: This is attribution of simulated risk, not realized risk
+
+**Plot**: `outputs/demo_quick/tail_risk_attribution_timeseries.png` shows a stacked
+area chart of percent contributions over time for each alpha level.
+
+## GAS Update Frequency
+
+The `gas_update_every` parameter controls how often the GAS latent state is updated.
+
+| Setting | Description |
+|---------|-------------|
+| `gas_update_every: 1` | Daily updates (default) |
+| `gas_update_every: 5` | Weekly updates (every 5 trading days) |
+
+**Behavior**:
+- On update days (t % update_every == 0): score is computed, OPG is updated, theta changes
+- On non-update days: theta and OPG are carried forward unchanged
+- Likelihood is ALWAYS computed daily using current theta (for VaR/ES forecasting)
+
+**Tradeoffs**:
+- **Daily (1)**: More responsive to regime changes, but noisier due to high-frequency score fluctuations
+- **Weekly (5)**: Smoother dynamics, less sensitive to transient market moves, but slower to adapt
+
+The `make demo-quick-weekly-gas` target runs the demo with `gas_update_every: 5` for comparison.
+
 ## What the Backtests Show
 
-### Coverage Results (OOS Period: ~3,800 days, 5 assets)
+### Coverage Results (OOS Period: ~4,300 days, 5 assets)
+
+*Note: Exact numeric values may vary slightly across runs due to GAS parameter
+estimation. The qualitative conclusions are stable.*
 
 | Method | VaR(5%) Rate | VaR(2.5%) Rate | VaR(1%) Rate | Pinball(5%) |
 |--------|--------------|----------------|--------------|-------------|
@@ -404,6 +462,53 @@ It is NOT defensible to claim:
 - Production-ready risk system (this is a demo)
 - Any trading signal or alpha generation
 - Precise attribution (MC noise means sampling error on individual components)
+
+## GAS Estimation/Evaluation Consistency
+
+### Single Source of Truth
+
+The GAS filter recursion used during parameter estimation is **identical** to the
+recursion used during out-of-sample evaluation. This is enforced by:
+
+1. **`gas_filter()`** in `src/vine_risk/core/gas.py` is the canonical implementation
+2. **`gas_neg_loglik()`** calls `gas_filter()` internally, ensuring the optimization
+   objective matches the evaluation likelihood
+3. **`GAS_FILTER_DEFAULTS`** provides explicit filter parameters (opg_decay, score_cap,
+   etc.) used consistently in both estimation and evaluation
+
+This design eliminates estimation/evaluation mismatch bugs where a model is optimized
+on one objective but evaluated on a different one.
+
+### Filter Parameters
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `opg_decay` | 0.98 | EWMA decay for OPG scaling |
+| `score_cap` | 50.0 | Raw score clipping bound |
+| `max_scaled_score` | 4.0 | Scaled score clipping bound |
+| `opg_floor` | 1e-3 | Minimum OPG to prevent division by zero |
+| `clip_theta` | 3.8 | Theta clipping bound (|rho| < 0.9999) |
+
+### Tau-Mode Parameterization (Optional)
+
+An alternative latent Kendall's tau parameterization is available for elliptical
+copulas (disabled by default):
+
+- Latent state: κ (kappa)
+- Kendall's tau: τ = tanh(κ)
+- Pearson correlation: ρ = sin(π/2 · τ)
+
+This is mathematically equivalent to theta-mode (θ = arctanh(ρ)) but:
+- Uses Kendall's tau (a rank correlation) as the intermediate quantity
+- May offer improved numerical stability in some cases
+- Provides interpretable intermediate values
+
+The score is computed via analytic chain rule:
+```
+d log c / d κ = (d log c / d ρ) × (d ρ / d τ) × (d τ / d κ)
+```
+
+No numerical differentiation is used.
 
 ## References
 

@@ -60,6 +60,10 @@ GAS dynamics require a well-defined score function based on the Fisher-z transfo
 
 When BIC selects a non-elliptical family for a Tree-1 edge, that edge remains static to respect the data-driven family selection.
 
+**3. Estimation uses same recursion as filtering (single source of truth)**
+
+The GAS filter implementation in `src/vine_risk/core/gas.py:gas_filter()` is used for both parameter estimation and out-of-sample evaluation. The optimizer calls `gas_neg_loglik()`, which internally calls `gas_filter()` with identical filter parameters (OPG decay, score clipping, etc.). This eliminates estimation/evaluation mismatch bugs.
+
 ## Baselines
 
 - **HS**: Non-parametric, no distributional assumption.
@@ -85,15 +89,17 @@ All forecasts use **strictly lagged** information. No lookahead.
 
 | File | Contents |
 |------|----------|
-| `metrics.json` | Per-method backtest statistics |
+| `metrics.json` | Per-method backtest statistics (includes `gas_update_every`) |
 | `var_es_timeseries.csv` | Daily VaR/ES forecasts + realized returns |
 | `backtest_summary.csv` | Breach counts, Kupiec/Christoffersen p-values, ES ratio |
 | `pinball_losses.csv` | Per-time pinball loss series for DM test |
 | `dm_tests.csv` | Diebold-Mariano test results (static vs gas vine) |
-| `tail_risk_attribution.csv` | Per-asset risk contributions (component ES) |
+| `tail_risk_attribution.csv` | Per-asset component ES at last OOS date |
+| `tail_risk_attribution_timeseries.csv` | Component ES through time (full OOS period) |
+| `tail_risk_attribution_timeseries.png` | Stacked area plot of attribution over time |
 | `scale_sanity.json` | Sanity check: vine VaR must not exceed 2x HS VaR |
 | `vine_model_card_static.json` | Full D-vine specification: trees, edges, families, params |
-| `vine_model_card_gas.json` | GAS D-vine specification with Tree-1 GAS parameters |
+| `vine_model_card_gas.json` | GAS D-vine specification (includes `gas_update_every`) |
 | `var_forecasts.png` | VaR forecast comparison (OOS period) |
 | `breaches.png` | Breach indicator with rolling breach rate for GAS D-vine |
 | `manifest.json` | SHA-256 hashes for all produced files |

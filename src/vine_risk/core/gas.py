@@ -222,6 +222,17 @@ def compute_score_and_info(
     return score_theta, max(opg_floor, info_theta)
 
 
+# Default filter kwargs for consistency between estimation and evaluation
+GAS_FILTER_DEFAULTS = {
+    "score_cap": 50.0,
+    "opg_decay": 0.98,
+    "opg_floor": 1e-3,
+    "max_scaled_score": 4.0,
+    "clip_theta": 3.8,
+    "update_every": 1,  # Update GAS state every K observations (1=daily, 5=weekly)
+}
+
+
 def gas_filter(
     z1: np.ndarray,
     z2: np.ndarray,
@@ -229,11 +240,12 @@ def gas_filter(
     nu: float,
     theta_init: float = 0.0,
     opg_init: float = 1.0,
-    score_cap: float = 50.0,
-    opg_decay: float = 0.98,
-    opg_floor: float = 1e-3,
-    max_scaled_score: float = 4.0,
-    clip_theta: float = 3.8,
+    score_cap: float = GAS_FILTER_DEFAULTS["score_cap"],
+    opg_decay: float = GAS_FILTER_DEFAULTS["opg_decay"],
+    opg_floor: float = GAS_FILTER_DEFAULTS["opg_floor"],
+    max_scaled_score: float = GAS_FILTER_DEFAULTS["max_scaled_score"],
+    clip_theta: float = GAS_FILTER_DEFAULTS["clip_theta"],
+    update_every: int = GAS_FILTER_DEFAULTS["update_every"],
     return_final_state: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Optional[GASFilterState]]:
     """
@@ -271,6 +283,11 @@ def gas_filter(
         Cap for scaled scores
     clip_theta : float
         Clipping bound for theta
+    update_every : int
+        Update GAS state every K observations. Default 1 (daily update).
+        Setting update_every=5 produces weekly updates. On non-update days,
+        both theta and opg are carried forward unchanged. This reduces
+        noise from high-frequency score fluctuations.
     return_final_state : bool
         If True, return the final state for OOS continuation
 
@@ -284,6 +301,18 @@ def gas_filter(
         Correlation values (rho = tanh(theta))
     final_state : GASFilterState or None
         Final state for continuation (if return_final_state=True)
+
+    Notes
+    -----
+    When update_every > 1, the GAS state is only updated on days where
+    (t % update_every == 0). On other days:
+    - Likelihood is still computed using current theta (for VaR/ES)
+    - Score is NOT computed
+    - OPG is NOT updated
+    - Theta is carried forward unchanged
+
+    This is useful for reducing noise from high-frequency score fluctuations
+    while still producing daily VaR/ES forecasts.
     """
     from vine_risk.core.copulas import log_student_t_copula_density
 
@@ -303,27 +332,365 @@ def gas_filter(
         rho = np.tanh(theta)
         rho_path[t] = rho
 
-        # Log-likelihood at current theta
+        # Log-likelihood at current theta (always computed)
         ll_path[t] = log_student_t_copula_density(z1[t], z2[t], rho, nu)
 
-        # Score (computed after observing u_t)
-        score, info = compute_score_and_info(z1[t], z2[t], theta, nu, opg_floor)
-        score = np.clip(score, -score_cap, score_cap)
+        # Only update state on update days
+        if t % update_every == 0:
+            # Score (computed after observing u_t)
+            score, info = compute_score_and_info(z1[t], z2[t], theta, nu, opg_floor)
+            score = np.clip(score, -score_cap, score_cap)
 
-        # OPG update (EWMA of squared scores)
-        opg = opg_decay * opg + (1.0 - opg_decay) * score**2
+            # OPG update (EWMA of squared scores)
+            opg = opg_decay * opg + (1.0 - opg_decay) * score**2
 
-        # Scaled score
-        scaled_score = score / np.sqrt(max(opg, opg_floor))
-        scaled_score = np.clip(scaled_score, -max_scaled_score, max_scaled_score)
+            # Scaled score
+            scaled_score = score / np.sqrt(max(opg, opg_floor))
+            scaled_score = np.clip(scaled_score, -max_scaled_score, max_scaled_score)
 
-        # GAS recursion: update for NEXT time step
-        theta = (
-            params.omega
-            + params.A * scaled_score
-            + B_eff * theta_path[t]
-        )
-        theta = np.clip(theta, -clip_theta, clip_theta)
+            # GAS recursion: update for NEXT time step
+            theta = (
+                params.omega
+                + params.A * scaled_score
+                + B_eff * theta_path[t]
+            )
+            theta = np.clip(theta, -clip_theta, clip_theta)
+        # On non-update days, theta and opg are carried forward unchanged
 
     final_state = GASFilterState(theta=theta, opg=opg) if return_final_state else None
     return theta_path, ll_path, rho_path, final_state
+
+
+# ============================================================================
+# GAS NEGATIVE LOG-LIKELIHOOD (FOR ESTIMATION)
+# ============================================================================
+
+def gas_neg_loglik(
+    z1: np.ndarray,
+    z2: np.ndarray,
+    omega: float,
+    A: float,
+    B: float,
+    nu: float,
+    theta_init: float = 0.0,
+    opg_init: float = 1.0,
+    **gas_filter_kwargs,
+) -> float:
+    """
+    Compute negative log-likelihood for GAS model estimation.
+
+    This function is the SINGLE SOURCE OF TRUTH for GAS estimation.
+    It calls gas_filter() with the same defaults used for evaluation,
+    ensuring mathematical consistency between fitting and forecasting.
+
+    Parameters
+    ----------
+    z1, z2 : np.ndarray
+        Arrays of t-quantiles
+    omega, A, B : float
+        GAS parameters (B is raw, pre-tanh)
+    nu : float
+        Degrees of freedom for t-copula
+    theta_init : float
+        Initial theta value
+    opg_init : float
+        Initial OPG value
+    **gas_filter_kwargs
+        Additional kwargs passed to gas_filter. If not provided,
+        uses GAS_FILTER_DEFAULTS for consistency.
+
+    Returns
+    -------
+    float
+        Negative sum of log-likelihoods (for minimization)
+
+    Notes
+    -----
+    By using gas_filter() internally, this ensures that the recursion
+    used during estimation is IDENTICAL to the recursion used during
+    out-of-sample evaluation. This eliminates estimation/evaluation
+    mismatch bugs.
+    """
+    params = GASParameters(omega=omega, A=A, B=B)
+
+    # Merge with defaults: explicit kwargs override defaults
+    kwargs = {**GAS_FILTER_DEFAULTS, **gas_filter_kwargs}
+
+    _, ll_path, _, _ = gas_filter(
+        z1, z2, params, nu,
+        theta_init=theta_init,
+        opg_init=opg_init,
+        return_final_state=False,
+        **kwargs,
+    )
+
+    return -np.sum(ll_path)
+
+
+# ============================================================================
+# TAU-MODE GAS (LATENT KENDALL'S TAU PARAMETERIZATION)
+# ============================================================================
+
+def kendall_tau_to_rho(tau: float) -> float:
+    """
+    Convert Kendall's tau to Pearson rho for elliptical copulas.
+
+    For elliptical copulas (Gaussian, Student-t):
+        rho = sin(pi/2 * tau)
+
+    This is an exact relationship, not an approximation.
+
+    Parameters
+    ----------
+    tau : float
+        Kendall's tau in (-1, 1)
+
+    Returns
+    -------
+    float
+        Pearson correlation rho
+    """
+    return np.sin(np.pi / 2.0 * tau)
+
+
+def rho_to_kendall_tau(rho: float) -> float:
+    """
+    Convert Pearson rho to Kendall's tau for elliptical copulas.
+
+    For elliptical copulas:
+        tau = 2/pi * arcsin(rho)
+
+    Parameters
+    ----------
+    rho : float
+        Pearson correlation in (-1, 1)
+
+    Returns
+    -------
+    float
+        Kendall's tau
+    """
+    return 2.0 / np.pi * np.arcsin(rho)
+
+
+def gas_score_kappa_t(
+    z1: float,
+    z2: float,
+    kappa: float,
+    nu: float,
+) -> float:
+    """
+    GAS score in latent Kendall's tau space (kappa) for bivariate t-copula.
+
+    The latent state is kappa, mapped to tau = tanh(kappa), then to
+    rho = sin(pi/2 * tau). The score is computed via chain rule:
+
+        d log c / d kappa = (d log c / d rho) * (d rho / d tau) * (d tau / d kappa)
+
+    where:
+        d tau / d kappa = 1 - tanh(kappa)^2 = sech(kappa)^2
+        d rho / d tau = (pi/2) * cos(pi/2 * tau)
+
+    Parameters
+    ----------
+    z1, z2 : float
+        t-quantiles
+    kappa : float
+        Latent state (kappa = arctanh(tau))
+    nu : float
+        Degrees of freedom
+
+    Returns
+    -------
+    float
+        Score d log c / d kappa
+
+    Notes
+    -----
+    This parameterization has interpretability advantages:
+    - kappa is unconstrained on the real line
+    - tau = tanh(kappa) is Kendall's tau, a rank correlation
+    - The chain to rho uses the exact elliptical relationship
+    """
+    # kappa -> tau -> rho
+    tau = np.tanh(kappa)
+    tau = np.clip(tau, -0.99, 0.99)  # Safety clip
+    rho = kendall_tau_to_rho(tau)
+    rho = np.clip(rho, -0.995, 0.995)
+
+    # Score in rho space
+    score_rho = dlogc_drho_t(z1, z2, rho, nu)
+
+    # Chain rule derivatives
+    # d tau / d kappa = sech(kappa)^2 = 1 - tanh(kappa)^2
+    dtau_dkappa = 1.0 - tau * tau
+
+    # d rho / d tau = (pi/2) * cos(pi/2 * tau)
+    drho_dtau = (np.pi / 2.0) * np.cos(np.pi / 2.0 * tau)
+
+    # Full chain rule
+    return score_rho * drho_dtau * dtau_dkappa
+
+
+def gas_filter_tau_mode(
+    z1: np.ndarray,
+    z2: np.ndarray,
+    params: GASParameters,
+    nu: float,
+    kappa_init: float = 0.0,
+    opg_init: float = 1.0,
+    score_cap: float = GAS_FILTER_DEFAULTS["score_cap"],
+    opg_decay: float = GAS_FILTER_DEFAULTS["opg_decay"],
+    opg_floor: float = GAS_FILTER_DEFAULTS["opg_floor"],
+    max_scaled_score: float = GAS_FILTER_DEFAULTS["max_scaled_score"],
+    clip_kappa: float = 3.8,
+    update_every: int = GAS_FILTER_DEFAULTS["update_every"],
+    return_final_state: bool = False,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[GASFilterState]]:
+    """
+    GAS filter with latent Kendall's tau parameterization.
+
+    The latent state is kappa, mapped to:
+        tau = tanh(kappa)       (Kendall's tau)
+        rho = sin(pi/2 * tau)   (Pearson correlation)
+
+    This parameterization is equivalent to theta-mode for elliptical
+    copulas but provides better interpretability (tau is a rank correlation)
+    and may offer numerical stability benefits.
+
+    Parameters
+    ----------
+    z1, z2 : np.ndarray
+        Arrays of t-quantiles
+    params : GASParameters
+        GAS model parameters (omega, A, B interpreted in kappa-space)
+    nu : float
+        Degrees of freedom
+    kappa_init : float
+        Initial kappa value
+    opg_init : float
+        Initial OPG value
+    score_cap, opg_decay, opg_floor, max_scaled_score, clip_kappa : float
+        Filter tuning parameters (same semantics as theta-mode)
+    update_every : int
+        Update GAS state every K observations. Default 1 (daily).
+    return_final_state : bool
+        If True, return final state for OOS continuation
+
+    Returns
+    -------
+    kappa_path : np.ndarray
+        Filtered kappa values
+    tau_path : np.ndarray
+        Kendall's tau path (tau = tanh(kappa))
+    rho_path : np.ndarray
+        Correlation path (rho = sin(pi/2 * tau))
+    ll_path : np.ndarray
+        Log-likelihood contributions
+    final_state : GASFilterState or None
+        Final state for continuation
+
+    Notes
+    -----
+    The returned final_state stores (kappa, opg) for consistency with
+    the GASFilterState dataclass. When resuming, use kappa_init=state.theta.
+    """
+    from vine_risk.core.copulas import log_student_t_copula_density
+
+    n = len(z1)
+
+    kappa_path = np.zeros(n)
+    tau_path = np.zeros(n)
+    rho_path = np.zeros(n)
+    ll_path = np.zeros(n)
+
+    kappa = kappa_init
+    opg = opg_init
+    B_eff = params.B_effective
+
+    for t in range(n):
+        # Record current state
+        kappa_path[t] = kappa
+        tau = np.tanh(kappa)
+        tau_path[t] = tau
+        rho = kendall_tau_to_rho(tau)
+        rho = np.clip(rho, -0.995, 0.995)
+        rho_path[t] = rho
+
+        # Log-likelihood at current rho (always computed)
+        ll_path[t] = log_student_t_copula_density(z1[t], z2[t], rho, nu)
+
+        # Only update state on update days
+        if t % update_every == 0:
+            # Score in kappa space
+            score = gas_score_kappa_t(z1[t], z2[t], kappa, nu)
+            if not np.isfinite(score):
+                score = 0.0
+            score = np.clip(score, -score_cap, score_cap)
+
+            # OPG update
+            opg = opg_decay * opg + (1.0 - opg_decay) * score**2
+
+            # Scaled score
+            scaled_score = score / np.sqrt(max(opg, opg_floor))
+            scaled_score = np.clip(scaled_score, -max_scaled_score, max_scaled_score)
+
+            # GAS recursion
+            kappa = params.omega + params.A * scaled_score + B_eff * kappa_path[t]
+            kappa = np.clip(kappa, -clip_kappa, clip_kappa)
+        # On non-update days, kappa and opg are carried forward unchanged
+
+    final_state = GASFilterState(theta=kappa, opg=opg) if return_final_state else None
+    return kappa_path, tau_path, rho_path, ll_path, final_state
+
+
+def gas_neg_loglik_tau_mode(
+    z1: np.ndarray,
+    z2: np.ndarray,
+    omega: float,
+    A: float,
+    B: float,
+    nu: float,
+    kappa_init: float = 0.0,
+    opg_init: float = 1.0,
+    **gas_filter_kwargs,
+) -> float:
+    """
+    Negative log-likelihood for GAS model in tau-mode.
+
+    Parameters
+    ----------
+    z1, z2 : np.ndarray
+        Arrays of t-quantiles
+    omega, A, B : float
+        GAS parameters in kappa-space
+    nu : float
+        Degrees of freedom
+    kappa_init : float
+        Initial kappa value
+    opg_init : float
+        Initial OPG value
+    **gas_filter_kwargs
+        Additional kwargs for gas_filter_tau_mode
+
+    Returns
+    -------
+    float
+        Negative sum of log-likelihoods
+    """
+    params = GASParameters(omega=omega, A=A, B=B)
+
+    kwargs = {**GAS_FILTER_DEFAULTS, **gas_filter_kwargs}
+    # Rename clip_theta to clip_kappa for tau mode
+    if "clip_theta" in kwargs:
+        kwargs["clip_kappa"] = kwargs.pop("clip_theta")
+
+    _, _, _, ll_path, _ = gas_filter_tau_mode(
+        z1, z2, params, nu,
+        kappa_init=kappa_init,
+        opg_init=opg_init,
+        return_final_state=False,
+        **kwargs,
+    )
+
+    return -np.sum(ll_path)
