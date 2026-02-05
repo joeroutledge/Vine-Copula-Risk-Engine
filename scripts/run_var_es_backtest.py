@@ -66,6 +66,7 @@ from vine_risk.benchmarks.dcc_garch import DCCGARCHModel
 from vine_risk.core.copulas import clip01
 from vine_risk.core.tail_dependence import lower_tail_dependence_t
 from vine_risk.model.tail_risk_attribution import compute_component_es
+from vine_risk.model.dm_test import dm_test
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -610,6 +611,31 @@ def pinball_loss(
     return float(np.mean(loss))
 
 
+def pinball_loss_series(
+    realized: np.ndarray,
+    var_forecast: np.ndarray,
+    alpha: float,
+) -> np.ndarray:
+    """
+    Per-time pinball loss series for VaR forecast evaluation.
+
+    L_alpha(r_t, q_t) = (alpha - 1{r_t < q_t}) * (r_t - q_t)
+                      = alpha * (r_t - q_t)      if r_t >= q_t
+                      = (1 - alpha) * (q_t - r_t) if r_t < q_t
+
+    Returns array of same length as inputs, with NaN where var_forecast is NaN.
+    """
+    loss = np.full_like(realized, np.nan, dtype=np.float64)
+    valid = ~np.isnan(var_forecast)
+
+    r = realized[valid]
+    q = var_forecast[valid]
+    diff = r - q
+
+    loss[valid] = np.where(diff >= 0, alpha * diff, (1 - alpha) * (-diff))
+    return loss
+
+
 # ===========================================================================
 # PLOTTING
 # ===========================================================================
@@ -1121,6 +1147,70 @@ def main():
     with open(out_dir / "metrics.json", "w") as f:
         json.dump(metrics_json, f, indent=2, default=str)
     print(f"Saved: metrics.json")
+
+    # ------------------------------------------------------------------
+    # Per-time pinball losses for DM test
+    # ------------------------------------------------------------------
+    oos_dates = returns.index[train_end:]
+    pinball_rows = []
+
+    # We compare static_vine and gas_vine models
+    dm_models = ["static_vine", "gas_vine"]
+
+    # Store per-time losses for DM test
+    pinball_series = {}  # {(model, alpha): np.ndarray}
+
+    for model_name in dm_models:
+        res = methods[model_name]
+        for a in alphas:
+            var_arr = res[f"var_{a}"]
+
+            # Compute per-time pinball loss on OOS period
+            loss_series = pinball_loss_series(port_ret, var_arr, a)
+            oos_losses = loss_series[train_end:]
+
+            pinball_series[(model_name, a)] = oos_losses
+
+            # Build rows for CSV
+            for i, (date, loss) in enumerate(zip(oos_dates, oos_losses)):
+                if not np.isnan(loss):
+                    pinball_rows.append({
+                        "date": date,
+                        "model": model_name,
+                        "alpha": a,
+                        "pinball_loss": loss,
+                    })
+
+    pinball_df = pd.DataFrame(pinball_rows)
+    pinball_df.to_csv(out_dir / "pinball_losses.csv", index=False)
+    print(f"Saved: pinball_losses.csv ({len(pinball_df)} rows)")
+
+    # ------------------------------------------------------------------
+    # Diebold-Mariano tests (static vs gas)
+    # ------------------------------------------------------------------
+    dm_rows = []
+
+    for a in alphas:
+        loss_static = pinball_series[("static_vine", a)]
+        loss_gas = pinball_series[("gas_vine", a)]
+
+        # DM test: static vs gas (positive mean_diff means gas is better)
+        dm_result = dm_test(loss_static, loss_gas, h=1)
+
+        dm_rows.append({
+            "model_a": "static_vine",
+            "model_b": "gas_vine",
+            "alpha": a,
+            "dm_stat": dm_result["stat"],
+            "p_value": dm_result["p_value"],
+            "mean_diff": dm_result["mean_diff"],
+            "n_obs": dm_result["n_obs"],
+            "nw_lags": dm_result["nw_lags"],
+        })
+
+    dm_df = pd.DataFrame(dm_rows)
+    dm_df.to_csv(out_dir / "dm_tests.csv", index=False)
+    print(f"Saved: dm_tests.csv ({len(dm_df)} rows)")
 
     # ------------------------------------------------------------------
     # Plots

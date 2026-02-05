@@ -215,10 +215,81 @@ After fixing the scaling bug, vine methods show reasonable coverage:
 - ✓ Rolling VaR/ES forecasting with strictly lagged information
 - ✓ Optional rolling marginal/copula refit
 - ✓ Formal backtest statistics (Kupiec, Christoffersen, pinball loss)
+- ✓ Diebold-Mariano test for forecast comparison
 - ✓ Tail risk attribution via Euler decomposition (component ES)
 - ✓ Automated scale sanity check (fail if vine VaR > 2x HS)
 - ✓ PIT/PPF round-trip unit test
 - ✓ Sensitivity analysis for hyperparameter robustness
+
+## Diebold-Mariano Test
+
+**Files**: `outputs/demo_quick/pinball_losses.csv`, `outputs/demo_quick/dm_tests.csv`
+
+### What is tested
+
+The Diebold-Mariano (DM) test compares predictive accuracy of two VaR forecasts
+using per-time pinball (quantile) loss. The test statistic is:
+
+```
+DM = mean(d_t) / sqrt(HAC_var(d_t) / T)
+```
+
+where `d_t = loss_A(t) - loss_B(t)` is the loss differential at time t.
+
+- **H0**: E[d_t] = 0 (equal predictive accuracy)
+- **H1**: E[d_t] != 0 (one model has systematically lower loss)
+- Newey-West HAC variance accounts for serial correlation in d_t
+- Uses h=1 (one-step ahead), so overlapping forecast issues are minimal
+
+### Why it complements Kupiec/Christoffersen
+
+| Test | Question | Focus |
+|------|----------|-------|
+| Kupiec | Is breach rate equal to alpha? | Calibration (unconditional) |
+| Christoffersen | Are breaches serially independent? | Calibration (conditional) |
+| **Diebold-Mariano** | Which model has lower pinball loss? | **Accuracy** |
+
+Kupiec and Christoffersen test whether a model is well-calibrated. The DM test
+compares accuracy between models via their loss functions. A model can pass
+calibration tests but still have worse accuracy (e.g., wider VaR bands).
+
+### Output format
+
+**pinball_losses.csv**:
+| Column | Description |
+|--------|-------------|
+| date | Forecast date |
+| model | "static_vine" or "gas_vine" |
+| alpha | VaR confidence level |
+| pinball_loss | Per-time quantile loss |
+
+**dm_tests.csv**:
+| Column | Description |
+|--------|-------------|
+| model_a, model_b | Models being compared |
+| alpha | VaR confidence level |
+| dm_stat | DM test statistic (~N(0,1) under H0) |
+| p_value | Two-sided p-value |
+| mean_diff | mean(loss_A - loss_B); negative means A is better |
+| n_obs | Number of observations |
+| nw_lags | Newey-West lags used |
+
+### What NOT to claim
+
+1. **Conditional on loss choice**: DM tests pinball loss; different loss
+   functions (e.g., tick loss, FZ loss) may give different conclusions.
+
+2. **Conditional on sample**: Results depend on the OOS period. Different
+   market regimes may favor different models.
+
+3. **Assumes weak dependence**: HAC variance assumes loss differentials have
+   weak serial dependence. This is reasonable for h=1 but not guaranteed.
+
+4. **Not a model validation**: A model can "win" the DM test but still be
+   poorly calibrated. Always check Kupiec/Christoffersen first.
+
+5. **No multiple testing correction**: If running DM at multiple alphas,
+   consider Bonferroni or similar adjustment when interpreting p-values.
 
 ## Sensitivity Analysis
 
@@ -297,6 +368,8 @@ After `make demo-quick`, check `outputs/demo_quick/` contains:
 - `metrics.json` — backtest statistics
 - `backtest_summary.csv` — per-method results table
 - `var_es_timeseries.csv` — daily forecasts
+- `pinball_losses.csv` — per-time pinball losses for DM test
+- `dm_tests.csv` — Diebold-Mariano test results
 - `tail_risk_attribution.csv` — per-asset risk contributions (component ES)
 - `scale_sanity.json` — scaling sanity check
 - `vine_model_card_static.json` — static D-vine spec
