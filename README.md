@@ -1,14 +1,31 @@
 # vine_risk_xva_demo
 
+[![CI](https://github.com/joeroutledge/Vine-Copula-Risk-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/joeroutledge/Vine-Copula-Risk-Engine/actions/workflows/ci.yml)
+
 D-vine copula + score-driven (GAS) risk distribution engine for
 portfolio VaR/ES forecasting, benchmarked against strong baselines
 with formal statistical backtests.
 
+## Quickstart
+
+```bash
+# Install (editable, with dev dependencies)
+pip install -e ".[dev]"
+
+# Run the demo pipeline
+make demo-quick
+
+# Verify output integrity
+python scripts/validate_manifest.py outputs/demo_quick/manifest.json
+
+# Run tests
+pytest -q
+```
+
 ## What this demo does
 
 Runs a **rolling one-step-ahead VaR/ES backtest** on daily ETF
-log-returns (default: 5 of 12 available assets, configurable via
-`n_assets` in `configs/demo.yaml`), comparing five methods:
+log-returns (5 of 12 available assets), comparing five methods:
 
 | Method | Description |
 |--------|-------------|
@@ -23,7 +40,7 @@ log-returns (default: 5 of 12 available assets, configurable via
 - **Vine type**: D-vine (not R-vine). Variable ordering determined by greedy Kendall's tau.
 - **Family set (Static)**: {Gaussian, Student-t, Clayton, Gumbel, Frank} with rotations, selected via BIC per edge.
 - **GAS dynamics**: Applied to Tree-1 edges with **elliptical families only** (gaussian, student-t). Non-elliptical edges (Clayton, Gumbel, Frank) remain static with their BIC-selected family. Higher trees always use static families.
-- **Model cards**: Exported to `outputs/<run>/vine_model_card_static.json` and `vine_model_card_gas.json` for independent verification of trees, edges, families, and parameters.
+- **Model cards**: Exported to `outputs/demo_quick/vine_model_card_static.json` and `vine_model_card_gas.json` for independent verification of trees, edges, families, and parameters.
 
 ### Design Choices
 
@@ -38,19 +55,10 @@ GAS dynamics are applied only to Tree-1 (unconditional) pair copulas. Rationale:
 **2. Elliptical-only GAS (gaussian/student, not Archimedean)**
 
 GAS dynamics require a well-defined score function based on the Fisher-z transformation (arctanh of correlation). This is only meaningful for elliptical copulas:
-- **Gaussian/Student-t**: Correlation parameter ρ maps cleanly to Fisher-z θ = arctanh(ρ)
-- **Clayton/Gumbel/Frank**: Dependence is parameterized by θ with different interpretation (not correlation). Forcing Student-t would misspecify tail dependence patterns.
+- **Gaussian/Student-t**: Correlation parameter rho maps cleanly to Fisher-z theta = arctanh(rho)
+- **Clayton/Gumbel/Frank**: Dependence is parameterized by theta with different interpretation (not correlation). Forcing Student-t would misspecify tail dependence patterns.
 
 When BIC selects a non-elliptical family for a Tree-1 edge, that edge remains static to respect the data-driven family selection.
-
-**3. Future work: Family-specific GAS**
-
-Extending GAS to non-elliptical families would require:
-- Deriving the copula score function for each family
-- Implementing family-specific parameter transformations
-- Validating stationarity and information bounds per family
-
-This is a research direction beyond the scope of this demo.
 
 ## Baselines
 
@@ -73,24 +81,7 @@ All forecasts use **strictly lagged** information. No lookahead.
 - No options pricing or vol surface modeling.
 - No performance marketing of any kind.
 
-## Reproduce
-
-```bash
-pip install -e ".[dev]"
-make demo       # Runs 5-asset VaR/ES backtest (fast, ~2 min)
-make demo-full  # Runs 12-asset backtest with rolling refits (~10 min)
-make test       # pytest -q
-```
-
-### Rolling Refit (optional)
-
-When `marginal_refit_freq_days > 0` in config, the model periodically refits:
-- GARCH-t marginal parameters on a rolling window
-- Copula pair-copula parameters (structure preserved)
-
-Enabled by default in `configs/demo_full12.yaml` (refit every 250 days, window=1000).
-
-### Outputs (in `outputs/demo/`)
+## Outputs (in `outputs/demo_quick/`)
 
 | File | Contents |
 |------|----------|
@@ -104,16 +95,18 @@ Enabled by default in `configs/demo_full12.yaml` (refit every 250 days, window=1
 | `breaches.png` | Breach indicator with rolling breach rate for GAS D-vine |
 | `manifest.json` | SHA-256 hashes for all produced files |
 
-### Verify artifact integrity
+## Release artifacts
 
-```bash
-python -c "
-import json, hashlib, pathlib
-m = json.load(open('outputs/demo/manifest.json'))
-for k, v in m['files'].items():
-    h = hashlib.sha256(open(f'outputs/demo/{k}', 'rb').read()).hexdigest()
-    print(f'{k}: {\"OK\" if h == v else \"MISMATCH\"}')"
-```
+To attach a reproducible archive to a GitHub Release:
+
+1. Run the pipeline: `make demo-quick`
+2. The pipeline creates `outputs/demo_quick/Archive01.zip` containing all outputs
+3. Create a GitHub Release and attach `Archive01.zip`
+4. Reviewers can verify integrity:
+   ```bash
+   unzip Archive01.zip -d outputs/demo_quick_verify/
+   python scripts/validate_manifest.py outputs/demo_quick_verify/manifest.json
+   ```
 
 ## Data
 

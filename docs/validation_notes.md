@@ -101,7 +101,7 @@ vine methods are slightly conservative due to genuine model effects:
 
 ### 1. Scale Sanity Check
 
-**File**: `outputs/demo/scale_sanity.json`
+**File**: `outputs/demo_quick/scale_sanity.json`
 
 Automated sanity check that fails the backtest if vine VaR(1%) exceeds
 2x the HS VaR(1%). This catches scaling bugs like the one fixed above.
@@ -130,15 +130,15 @@ the marginal level before they propagate to VaR estimates.
 
 Optional rolling refit of GARCH marginals and copula parameters on a
 sliding window. Structure (D-vine order) is preserved; only parameters
-are updated. Enabled in `configs/demo_full12.yaml` for the 12-asset run.
+are updated. Enable by setting `marginal_refit_freq_days > 0` in config.
 
-### 4. Full 12-Asset Configuration
+### 4. Configuration
 
-**File**: `configs/demo_full12.yaml`
-**Target**: `make demo-full`
+**File**: `configs/demo_quick.yaml`
+**Target**: `make demo-quick`
 
-Extended backtest using all 12 ETFs in the dataset with rolling refits
-every 250 days. Use this for more comprehensive evaluation.
+Quick demo with 5 assets and 1000 Monte Carlo simulations for fast iteration.
+Parameters can be adjusted in the config file for extended evaluation.
 
 ## What the Backtests Show
 
@@ -177,6 +177,55 @@ After fixing the scaling bug, vine methods show reasonable coverage:
 - ✓ Formal backtest statistics (Kupiec, Christoffersen, pinball loss)
 - ✓ Automated scale sanity check (fail if vine VaR > 2x HS)
 - ✓ PIT/PPF round-trip unit test
+
+## Reviewer Checklist
+
+### 1. Reproduction commands
+
+```bash
+pip install -e ".[dev]"
+pytest -q                                                          # all tests pass
+make demo-quick                                                    # generates outputs/demo_quick/
+python scripts/validate_manifest.py outputs/demo_quick/manifest.json  # "All files OK"
+```
+
+### 2. Expected output files
+
+After `make demo-quick`, check `outputs/demo_quick/` contains:
+- `metrics.json` — backtest statistics
+- `backtest_summary.csv` — per-method results table
+- `var_es_timeseries.csv` — daily forecasts
+- `scale_sanity.json` — scaling sanity check
+- `vine_model_card_static.json` — static D-vine spec
+- `vine_model_card_gas.json` — GAS D-vine spec
+- `var_forecasts.png`, `breaches.png` — plots
+- `manifest.json` — SHA-256 hashes
+
+### 3. What to check in metrics.json
+
+- `kupiec_pval_*`: p-values > 0.05 indicate coverage not rejected at 5% level
+- `chris_pval_*`: p-values > 0.05 indicate independence not rejected
+- `es_ratio_*`: values near 1.0 indicate well-calibrated ES
+- `breach_rate_*`: should be close to nominal alpha (e.g., ~1% for VaR(1%))
+
+### 4. What to check in model cards
+
+- `vine_model_card_static.json`: verify tree structure, families per edge, parameters
+- `vine_model_card_gas.json`: same plus GAS parameters (omega, A, B) for Tree-1 edges
+
+### 5. Safe claims
+
+Based on this demo, it is defensible to claim:
+- Implementation of D-vine copula with BIC family selection
+- Implementation of GAS dynamics for elliptical Tree-1 edges
+- Rolling VaR/ES forecasting with strictly lagged information
+- Formal backtests (Kupiec, Christoffersen, ES adequacy)
+- Coherent GARCH-t marginals with estimated degrees of freedom
+
+It is NOT defensible to claim:
+- Superior performance vs baselines (results are method/period dependent)
+- Production-ready risk system (this is a demo)
+- Any trading signal or alpha generation
 
 ## References
 
