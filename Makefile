@@ -1,4 +1,4 @@
-.PHONY: demo-quick test clean install validate-manifest
+.PHONY: demo-quick sensitivity-quick test clean install validate-manifest
 
 install:
 	pip install -e ".[dev]"
@@ -11,6 +11,14 @@ demo-quick:
 	python scripts/validate_manifest.py outputs/demo_quick/
 	@echo "=== Done (quick demo) ==="
 
+sensitivity-quick:
+	@echo "=== vine_risk_xva_demo: Sensitivity analysis ==="
+	python scripts/run_sensitivity.py
+	@echo ""
+	@echo "=== Verifying manifest hashes ==="
+	python scripts/validate_manifest.py outputs/sensitivity_quick/
+	@echo "=== Done (sensitivity analysis) ==="
+
 validate-manifest:
 	@echo "Validating demo_quick manifest..."
 	python scripts/validate_manifest.py outputs/demo_quick/
@@ -20,3 +28,4 @@ test:
 
 clean:
 	rm -rf outputs/demo_quick/*
+	rm -rf outputs/sensitivity_quick/*

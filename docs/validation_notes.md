@@ -218,6 +218,65 @@ After fixing the scaling bug, vine methods show reasonable coverage:
 - ✓ Tail risk attribution via Euler decomposition (component ES)
 - ✓ Automated scale sanity check (fail if vine VaR > 2x HS)
 - ✓ PIT/PPF round-trip unit test
+- ✓ Sensitivity analysis for hyperparameter robustness
+
+## Sensitivity Analysis
+
+**File**: `outputs/sensitivity_quick/sensitivity_summary.csv`
+**Command**: `make sensitivity-quick`
+
+### What is varied
+
+The sensitivity analysis runs a small grid over two key hyperparameters:
+
+| Parameter | Values | Rationale |
+|-----------|--------|-----------|
+| `n_sim` | {500, 1000, 2000} | MC simulation count affects VaR/ES sampling noise |
+| `nu_fixed` | {30, 100, 300} | Fixed copula df affects tail dependence modeling |
+
+Both `static` and `gas` vine models are evaluated.
+
+### What is stable vs what moves
+
+**Expected to be stable**:
+- Kupiec p-values should remain > 0.05 across grid (coverage not rejected)
+- ES shortfall ratios should remain near 1.0 (well-calibrated)
+- Relative ranking of methods should not invert
+
+**Expected to vary**:
+- Pinball loss improves slightly with more simulations (less MC noise)
+- Hit rates have natural MC variation (~0.5% for 1000 sims)
+- Very high nu_fixed (300) approaches Gaussian copula behavior
+
+### What this does NOT prove
+
+1. **Not a hyperparameter search**: The grid is for robustness checking, not
+   optimization. The default nu_fixed=None (estimated) is preferred.
+
+2. **Not exhaustive**: Only two hyperparameters are varied. Other factors
+   (train_days, n_assets, refit_freq) are held constant.
+
+3. **Not a model comparison**: Different configurations are not compared
+   statistically. This checks that results don't collapse under perturbation.
+
+4. **Not a guarantee**: Passing sensitivity checks doesn't prove the model
+   is correct, only that it's not pathologically sensitive to these choices.
+
+### Output format (sensitivity_summary.csv)
+
+| Column | Description |
+|--------|-------------|
+| model | "static" or "gas" |
+| config_id | Configuration index (1-18 for full grid) |
+| n_sim | Monte Carlo simulation count |
+| nu_fixed | Fixed degrees of freedom |
+| alpha | VaR confidence level |
+| hit_rate | Realized breach rate |
+| kupiec_p | Kupiec test p-value |
+| christoffersen_p | Christoffersen test p-value |
+| es_shortfall_ratio | Mean realized / forecast ES on breach days |
+| pinball_loss | Quantile loss |
+| n_oos | Number of OOS observations |
 
 ## Reviewer Checklist
 
@@ -225,9 +284,11 @@ After fixing the scaling bug, vine methods show reasonable coverage:
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                                                          # all tests pass
-make demo-quick                                                    # generates outputs/demo_quick/
-python scripts/validate_manifest.py outputs/demo_quick/manifest.json  # "All files OK"
+pytest -q                                                              # all tests pass
+make demo-quick                                                        # generates outputs/demo_quick/
+make sensitivity-quick                                                 # generates outputs/sensitivity_quick/
+python scripts/validate_manifest.py outputs/demo_quick/manifest.json   # "All files OK"
+python scripts/validate_manifest.py outputs/sensitivity_quick/manifest.json
 ```
 
 ### 2. Expected output files
