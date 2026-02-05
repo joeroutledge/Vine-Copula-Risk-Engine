@@ -1,16 +1,18 @@
 {
-  "produced_utc": "2026-02-05T13:42:42Z",
+  "produced_utc": "2026-02-05T18:16:29Z",
   "files": {
-    "backtest_summary.csv": "9fe638be102563260a8e4232dc3fb40683c8e6c1feda92a803b18ed0b723711e",
-    "breaches.png": "b505bbe35fd1125a13380c0a92a07d6f9e494901f78c83359539ab281904a248",
-    "dm_tests.csv": "0bf410744858b322f87e3a4c05726dbade06eb4edbb84030aa0c15b399c78146",
-    "metrics.json": "380a729a1c235ed312163ad52556e416a0de741ec847562eb1e57a4358843b70",
-    "pinball_losses.csv": "659c0e69d4c8d7e81909da7b76cb2638a61a5d88be5c6707dc7b7524651e9f69",
-    "scale_sanity.json": "a056624ed51bdb74ce3da083ca58390045beedf0ae32038c303d89922bb1d666",
-    "tail_risk_attribution.csv": "bca6cc7a72e1460dd190298b350c5042d4ab1d314153941872142080523ca034",
-    "var_es_timeseries.csv": "f6bcdea6ab57645ad8bcc9660a40f45d0aa2b93a1bf9772be9990152a7c1df83",
-    "var_forecasts.png": "b2f9e1e9dcb09bfd9905f0169e013d5dd9b9454d7aa5028d2bf02c4b086e97d2",
-    "vine_model_card_gas.json": "490f1cf9435011c9788c60658875418b3c941a2f1525673aab558212648e7970",
+    "backtest_summary.csv": "ff1097ceb9e49844b5cb6c3ac4c18471fc6940e98db9dd46902041dd38cd0e7b",
+    "breaches.png": "eac7533f632f08ffd954f1f74a445f611cf21d3f7297086217b71c8087e80ad7",
+    "dm_tests.csv": "0915d3a3345a417b1068cc6318d0e5c842080054caf4d111c9959c65891daae4",
+    "metrics.json": "5d615ff1f2611f707e3aa42f5345341b2a517ac104728d82a2cff0294d3c769b",
+    "pinball_losses.csv": "47249ddbbbebcfb81ecb9f78f4401e9ef189583b0b7133ef32524f3cb3055b07",
+    "scale_sanity.json": "6730e38e17ff2f6d95ee030f26f3fac5e073726f1e0ad436bd2e26088e2b7719",
+    "tail_risk_attribution.csv": "73c2a76ece10473445bd0b88986cc7268de217fe3100cc96d7776d0a93458ba5",
+    "tail_risk_attribution_timeseries.csv": "cf9bc7479330cd19dc5c4fb82d7946098fb7c51ef701cb6e5f27d413cb305f34",
+    "tail_risk_attribution_timeseries.png": "df9ac486bfb563b0448b63c5a7328bfa325e88d6fe079fda473c8b3785a3ef32",
+    "var_es_timeseries.csv": "380356dba5b24a28b08ce45b8c314dd86cc0893b0b2162691f4fc40c2f523a38",
+    "var_forecasts.png": "02341de3c0a6f7a4c5ab193bd29b8d2225770c4d9d0b2288c203bda4feb4eba1",
+    "vine_model_card_gas.json": "e33aa697e4df003728f276d199ba28a64b7e034ef8755173188a83fc9c116fe7",
     "vine_model_card_static.json": "fcde24aead91094005a72959ecf4cf98df00d8ec3b83fe55e7579d6a9562ef67"
   }
 }

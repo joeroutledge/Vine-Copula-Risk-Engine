@@ -36,10 +36,10 @@
       "kendall_tau": 0.624214,
       "is_dynamic": true,
       "gas_params": {
-        "omega": 0.082071,
-        "A": 0.104768,
-        "B": 1.638961,
-        "B_effective": 0.927327
+        "omega": 0.080434,
+        "A": 0.097853,
+        "B": 1.666005,
+        "B_effective": 0.931021
       },
       "rho_static": 0.830783,
       "nu_fixed": 4.5088
@@ -77,10 +77,10 @@
       "kendall_tau": 0.156532,
       "is_dynamic": true,
       "gas_params": {
-        "omega": 0.001112,
-        "A": 0.010428,
-        "B": 2.917279,
-        "B_effective": 0.994168
+        "omega": 0.001244,
+        "A": 0.010666,
+        "B": 2.896045,
+        "B_effective": 0.993915
       },
       "rho_static": 0.24341,
       "nu_fixed": 10.6263
@@ -102,10 +102,10 @@
       "kendall_tau": 0.6309,
       "is_dynamic": true,
       "gas_params": {
-        "omega": 0.053204,
-        "A": 0.050404,
-        "B": 1.887346,
-        "B_effective": 0.955141
+        "omega": 0.052236,
+        "A": 0.048873,
+        "B": 1.905246,
+        "B_effective": 0.956684
       },
       "rho_static": 0.836583,
       "nu_fixed": 9.2291
@@ -219,6 +219,7 @@
     }
   ],
   "gas_scope": "tree1_elliptical_only",
+  "gas_update_every": 1,
   "dynamic_edge_count": 3,
   "static_tree1_edge_count": 1,
   "higher_tree_dynamics": "static"
