@@ -65,6 +65,7 @@ from vine_risk.benchmarks.gas_vine import GASDVineModel
 from vine_risk.benchmarks.dcc_garch import DCCGARCHModel
 from vine_risk.core.copulas import clip01
 from vine_risk.core.tail_dependence import lower_tail_dependence_t
+from vine_risk.model.tail_risk_attribution import compute_component_es
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -931,6 +932,52 @@ def main():
     with open(out_dir / "vine_model_card_gas.json", "w") as f:
         json.dump(gas_card, f, indent=2)
     print(f"       Exported: vine_model_card_gas.json ({gas_card['total_pair_copulas']} pair copulas)")
+
+    # ------------------------------------------------------------------
+    # VaR Attribution (Component VaR) for GAS D-vine
+    # ------------------------------------------------------------------
+    print("       Computing VaR attribution ...", flush=True)
+
+    # Use the last OOS time step for attribution snapshot
+    t_attrib = n - 1
+    np.random.seed(seed + 1000 + t_attrib)  # Same seed scheme as gas_vine
+
+    # Simulate from GAS D-vine at last time step
+    U_sim_attrib = gas_model.simulate(n_sim=n_sim, t_idx=t_attrib)
+
+    # Invert marginals: r = sigma * t(nu).ppf(u)
+    from scipy.stats import t as tdist
+    r_sim_attrib = np.empty_like(U_sim_attrib)
+    cols = list(returns.columns)
+    for j, col in enumerate(cols):
+        order_j = gas_model.order[j] if j < len(gas_model.order) else j
+        asset = gas_model.assets[order_j]
+        info = garch_info[asset]
+        sig_t = info["sigma"][min(t_attrib, len(info["sigma"]) - 1)]
+        nu = info["nu"]
+        z = tdist.ppf(clip01(U_sim_attrib[:, j]), nu)
+        r_sim_attrib[:, j] = z * sig_t
+
+    # Reorder to match original asset order
+    r_aligned_attrib = np.empty((n_sim, len(cols)))
+    for j in range(len(cols)):
+        orig_idx = gas_model.order[j]
+        r_aligned_attrib[:, orig_idx] = r_sim_attrib[:, j]
+
+    # Compute component ES for each alpha
+    attrib_rows = []
+    for a in alphas:
+        df_attrib = compute_component_es(
+            sim_returns=r_aligned_attrib,
+            weights=weights,
+            alpha=a,
+            asset_names=asset_cols,
+        )
+        attrib_rows.append(df_attrib)
+
+    attrib_df = pd.concat(attrib_rows, ignore_index=True)
+    attrib_df.to_csv(out_dir / "tail_risk_attribution.csv", index=False)
+    print(f"       Exported: tail_risk_attribution.csv ({len(attrib_df)} rows)")
 
     print()
 

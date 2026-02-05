@@ -140,6 +140,46 @@ are updated. Enable by setting `marginal_refit_freq_days > 0` in config.
 Quick demo with 5 assets and 1000 Monte Carlo simulations for fast iteration.
 Parameters can be adjusted in the config file for extended evaluation.
 
+### 5. Tail Risk Attribution (Component ES)
+
+**File**: `outputs/demo_quick/tail_risk_attribution.csv`
+
+Decomposes portfolio tail risk into per-asset contributions using the Euler
+decomposition for Expected Shortfall (ES) applied to Monte Carlo simulations.
+
+**Definition**:
+```
+Portfolio loss:      L = -Σ_i w_i * r_i  (positive when portfolio loses)
+VaR_α:               α-quantile of L across MC paths
+ES_α:                E[L | L >= VaR_α]  (expected shortfall)
+ComponentES_i:       w_i * E[-r_i | L >= VaR_α]  (tail conditional expectation)
+PercentContrib_i:    ComponentES_i / Σ_j ComponentES_j
+```
+
+**Interpretation**:
+- Component ES answers: "How much does asset i contribute to portfolio tail risk?"
+- The sum of component ES equals portfolio ES exactly (Euler decomposition)
+- Assets with higher volatility, higher weight, or stronger tail dependence with
+  other assets contribute more to portfolio tail risk
+
+**Limitations**:
+1. **MC noise**: With finite simulations (e.g., 1000), components have sampling error.
+2. **Tail approximation**: The conditional expectation is computed on a discrete
+   set of tail paths. For small alpha (e.g., 0.01), this may be only 10-50 paths.
+3. **Single time step**: The attribution is computed at the last OOS time step,
+   not averaged over time. Risk contributions vary with market conditions.
+
+**Output format** (tail_risk_attribution.csv):
+| Column | Description |
+|--------|-------------|
+| alpha | VaR confidence level (e.g., 0.01, 0.05) |
+| asset | Asset ticker |
+| weight | Portfolio weight (equal weights in demo) |
+| component_es | w_i * E[-r_i \| L >= VaR] |
+| percent_contribution | component_es / portfolio_es |
+| portfolio_var | VaR_α of portfolio (positive loss) |
+| portfolio_es | ES_α = Σ_i component_es |
+
 ## What the Backtests Show
 
 ### Coverage Results (OOS Period: ~3,800 days, 5 assets)
@@ -175,6 +215,7 @@ After fixing the scaling bug, vine methods show reasonable coverage:
 - ✓ Rolling VaR/ES forecasting with strictly lagged information
 - ✓ Optional rolling marginal/copula refit
 - ✓ Formal backtest statistics (Kupiec, Christoffersen, pinball loss)
+- ✓ Tail risk attribution via Euler decomposition (component ES)
 - ✓ Automated scale sanity check (fail if vine VaR > 2x HS)
 - ✓ PIT/PPF round-trip unit test
 
@@ -195,6 +236,7 @@ After `make demo-quick`, check `outputs/demo_quick/` contains:
 - `metrics.json` — backtest statistics
 - `backtest_summary.csv` — per-method results table
 - `var_es_timeseries.csv` — daily forecasts
+- `tail_risk_attribution.csv` — per-asset risk contributions (component ES)
 - `scale_sanity.json` — scaling sanity check
 - `vine_model_card_static.json` — static D-vine spec
 - `vine_model_card_gas.json` — GAS D-vine spec
@@ -221,11 +263,13 @@ Based on this demo, it is defensible to claim:
 - Rolling VaR/ES forecasting with strictly lagged information
 - Formal backtests (Kupiec, Christoffersen, ES adequacy)
 - Coherent GARCH-t marginals with estimated degrees of freedom
+- Tail risk attribution via Euler decomposition (component ES per asset)
 
 It is NOT defensible to claim:
 - Superior performance vs baselines (results are method/period dependent)
 - Production-ready risk system (this is a demo)
 - Any trading signal or alpha generation
+- Precise attribution (MC noise means sampling error on individual components)
 
 ## References
 

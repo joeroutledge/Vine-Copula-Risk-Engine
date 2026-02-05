@@ -88,6 +88,7 @@ All forecasts use **strictly lagged** information. No lookahead.
 | `metrics.json` | Per-method backtest statistics |
 | `var_es_timeseries.csv` | Daily VaR/ES forecasts + realized returns |
 | `backtest_summary.csv` | Breach counts, Kupiec/Christoffersen p-values, ES ratio |
+| `tail_risk_attribution.csv` | Per-asset risk contributions (component ES) |
 | `scale_sanity.json` | Sanity check: vine VaR must not exceed 2x HS VaR |
 | `vine_model_card_static.json` | Full D-vine specification: trees, edges, families, params |
 | `vine_model_card_gas.json` | GAS D-vine specification with Tree-1 GAS parameters |
