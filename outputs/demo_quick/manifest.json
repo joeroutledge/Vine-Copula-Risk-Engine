@@ -1,12 +1,13 @@
 {
-  "produced_utc": "2026-02-05T10:47:04Z",
+  "produced_utc": "2026-02-05T11:50:04Z",
   "files": {
-    "backtest_summary.csv": "7955d1377ff7a6f100642dada2ec3621ab3fdc1f11860db2474503c76af61ee4",
-    "breaches.png": "8e971f6acadf01fe04fb9d7db78fb5ad6a87350314f086d4544c4741f6cf2848",
-    "metrics.json": "9f3ead6435d8f777c48b66566e04d9fccf41b85e07d22f82b8cd6f45cc4b6d77",
-    "scale_sanity.json": "389cecd2f107399234874656c14187d91c943e2154a13f0c606fffd6eb3b8436",
-    "var_es_timeseries.csv": "7df7d0f3d371d102ad550c41f93ec01bc096f7bca660c39d23a8d53d7873ec47",
-    "var_forecasts.png": "0185423c5e4773e889fe219ccff975953e70a719fdc472cc96d02e580acf1fda",
+    "backtest_summary.csv": "4b189a843c2e1a6776d9b7ba4d2928453ad4df41f2130e7e137c66977aa87934",
+    "breaches.png": "50f51976d4fe79d08be7093fc173ee67ff4478a13c4b01f6924e1e63d4e39bff",
+    "metrics.json": "212d22ff69d9d15a7e162f017cbd97580e1e53f5909a9783efb483e8bcad53ed",
+    "scale_sanity.json": "f772fde2d83d4980e23d1d0922cbb0dcd49510012bb035761652d0400eece7ab",
+    "tail_risk_attribution.csv": "b5ed2ff1a2caf6c13cfa252ad0e2d412b3d4e3871694f9837c004c088c4b21c9",
+    "var_es_timeseries.csv": "d160c7fbc5bcced0c9e3246235877d1f5e5a78ed1d399c85a30940f59ca1dbdf",
+    "var_forecasts.png": "dab908a65bb84ea4de7ea749f4754f7a17232f78a41360a300ea5fb92b9756ed",
     "vine_model_card_gas.json": "490f1cf9435011c9788c60658875418b3c941a2f1525673aab558212648e7970",
     "vine_model_card_static.json": "fcde24aead91094005a72959ecf4cf98df00d8ec3b83fe55e7579d6a9562ef67"
   }

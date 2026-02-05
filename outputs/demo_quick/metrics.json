@@ -111,15 +111,15 @@
         "method": "static_vine",
         "alpha": 0.01,
         "n_obs": 4327,
-        "n_breaches": 45,
-        "hit_rate": 0.010399815114397967,
+        "n_breaches": 48,
+        "hit_rate": 0.011093136122024498,
         "expected_rate": 0.01,
-        "kupiec_stat": 0.06896295890595638,
-        "kupiec_pval": 0.7928527373709319,
-        "chris_stat": 2.852263924632723,
-        "chris_pval": 0.09124536426854268,
-        "es_shortfall_ratio": 1.0334714520093442,
-        "pinball_loss": 0.000190578614872916
+        "kupiec_stat": 0.5044045252457181,
+        "kupiec_pval": 0.47757117879652433,
+        "chris_stat": 5.699362629954521,
+        "chris_pval": 0.01697107473600734,
+        "es_shortfall_ratio": 1.0404846323821668,
+        "pinball_loss": 0.00019263568304209443
       },
       "0.05": {
         "method": "static_vine",
@@ -132,8 +132,8 @@
         "kupiec_pval": 0.1708338683722228,
         "chris_stat": 2.681422414512781,
         "chris_pval": 0.1015250084858419,
-        "es_shortfall_ratio": 1.006949809042161,
-        "pinball_loss": 0.0006551969783614674
+        "es_shortfall_ratio": 1.0182174972433153,
+        "pinball_loss": 0.0006582997530040427
       }
     },
     "gas_vine": {
@@ -141,29 +141,29 @@
         "method": "gas_vine",
         "alpha": 0.01,
         "n_obs": 4327,
-        "n_breaches": 57,
-        "hit_rate": 0.013173099144904091,
+        "n_breaches": 56,
+        "hit_rate": 0.012941992142361913,
         "expected_rate": 0.01,
-        "kupiec_stat": 4.001509160134788,
-        "kupiec_pval": 0.045459542596420044,
-        "chris_stat": 7.268076597939171,
-        "chris_pval": 0.007019092934250182,
-        "es_shortfall_ratio": 1.0477768963314962,
-        "pinball_loss": 0.00019445529432934625
+        "kupiec_stat": 3.4617866752661257,
+        "kupiec_pval": 0.06280241987542645,
+        "chris_stat": 1.5688810985689088,
+        "chris_pval": 0.2103695797381342,
+        "es_shortfall_ratio": 1.0434577529438531,
+        "pinball_loss": 0.00019082244444458527
       },
       "0.05": {
         "method": "gas_vine",
         "alpha": 0.05,
         "n_obs": 4327,
-        "n_breaches": 223,
-        "hit_rate": 0.05153686156690548,
+        "n_breaches": 226,
+        "hit_rate": 0.052230182574532005,
         "expected_rate": 0.05,
-        "kupiec_stat": 0.21310377292456906,
-        "kupiec_pval": 0.6443454994536808,
-        "chris_stat": 1.76983537085016,
-        "chris_pval": 0.18340245450284431,
-        "es_shortfall_ratio": 1.0273278122857226,
-        "pinball_loss": 0.0006532743559266107
+        "kupiec_stat": 0.44683644368365094,
+        "kupiec_pval": 0.503841117978262,
+        "chris_stat": 4.1946313180565085,
+        "chris_pval": 0.040552170068431925,
+        "es_shortfall_ratio": 1.0133926765940307,
+        "pinball_loss": 0.0006507001794291228
       }
     }
   }
