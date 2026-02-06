@@ -1,10 +1,15 @@
-# vine_risk_xva_demo
+# Vine Copula VaR/ES Risk Engine
 
 [![CI](https://github.com/joeroutledge/Vine-Copula-Risk-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/joeroutledge/Vine-Copula-Risk-Engine/actions/workflows/ci.yml)
 
-D-vine copula + score-driven (GAS) risk distribution engine for
-portfolio VaR/ES forecasting, benchmarked against strong baselines
-with formal statistical backtests.
+A production-grade VaR/ES forecasting engine using D-vine copulas with optional
+score-driven (GAS) dynamics. The pipeline transforms daily returns through
+GARCH(1,1)-t marginals → PIT uniforms → D-vine copula → Monte Carlo simulation,
+producing one-step-ahead VaR/ES forecasts with full backtesting and governance
+artifacts.
+
+**This is not an XVA exposure engine.** XVA-style extensions (counterparty credit,
+funding valuation adjustments) are listed as future work only and are not implemented.
 
 ## Quickstart
 
@@ -12,7 +17,7 @@ with formal statistical backtests.
 # Install (editable, with dev dependencies)
 pip install -e ".[dev]"
 
-# Run the demo pipeline
+# Run the demo pipeline (no internet required; uses bundled data)
 make demo-quick
 
 # Verify output integrity
@@ -37,10 +42,10 @@ log-returns (5 of 12 available assets), comparing five methods:
 
 ### Vine Copula Specification
 
-- **Vine type**: D-vine (not R-vine). Variable ordering determined by greedy Kendall's tau.
+- **Vine type**: D-vine (not R-vine). Variable ordering determined by greedy Kendall's tau on training data only (no OOS leakage).
 - **Family set (Static)**: {Gaussian, Student-t, Clayton, Gumbel, Frank} with rotations, selected via BIC per edge.
 - **GAS dynamics**: Applied to Tree-1 edges with **elliptical families only** (gaussian, student-t). Non-elliptical edges (Clayton, Gumbel, Frank) remain static with their BIC-selected family. Higher trees always use static families.
-- **Model cards**: Exported to `outputs/demo_quick/vine_model_card_static.json` and `vine_model_card_gas.json` for independent verification of trees, edges, families, and parameters.
+- **Model cards**: Exported to `outputs/demo_quick/vine_model_card_static.json` and `vine_model_card_gas.json` for independent verification of trees, edges, families, and parameters. Includes `order_source` field confirming train-only structure selection.
 
 ### Design Choices
 
@@ -97,6 +102,7 @@ VaR/ES forecasts in `var_es_timeseries.csv` use return-space (negative for left 
 
 ## What this repo explicitly does NOT do
 
+- No XVA (CVA, DVA, FVA, MVA) — this is a market risk VaR/ES engine only.
 - No trading strategy, no portfolio signal layering, no Sharpe claims.
 - No regime gating or exogenous signal conditioning.
 - No options pricing or vol surface modeling.
@@ -106,7 +112,7 @@ VaR/ES forecasts in `var_es_timeseries.csv` use return-space (negative for left 
 
 | File | Contents |
 |------|----------|
-| `metrics.json` | Per-method backtest statistics (includes `gas_update_every`) |
+| `metrics.json` | Per-method backtest statistics (includes `gas_update_every`, `determinism`) |
 | `var_es_timeseries.csv` | Daily VaR/ES forecasts + realized returns |
 | `backtest_summary.csv` | Breach counts, Kupiec/Christoffersen p-values, ES ratio |
 | `pinball_losses.csv` | Per-time pinball loss series for DM test |
@@ -115,8 +121,8 @@ VaR/ES forecasts in `var_es_timeseries.csv` use return-space (negative for left 
 | `tail_risk_attribution_timeseries.csv` | Component ES through time (full OOS period) |
 | `tail_risk_attribution_timeseries.png` | Stacked area plot of attribution over time |
 | `scale_sanity.json` | Sanity check: vine VaR must not exceed 2x HS VaR |
-| `vine_model_card_static.json` | Full D-vine specification: trees, edges, families, params |
-| `vine_model_card_gas.json` | GAS D-vine specification (includes `gas_update_every`) |
+| `vine_model_card_static.json` | Full D-vine specification: trees, edges, families, params, `order_source` |
+| `vine_model_card_gas.json` | GAS D-vine specification (includes `gas_update_every`, `determinism`) |
 | `var_forecasts.png` | VaR forecast comparison (OOS period) |
 | `breaches.png` | Breach indicator with rolling breach rate for GAS D-vine |
 | `manifest.json` | SHA-256 hashes for all produced files |
@@ -136,9 +142,18 @@ To attach a reproducible archive to a GitHub Release:
 
 ## Data
 
-`data/public_returns.csv` — daily log-returns for 12 liquid US ETFs
+This repository includes a **frozen snapshot** of historical data:
+
+**`data/public_returns.csv`** — daily log-returns for 12 liquid US ETFs
 (AGG, EEM, EFA, GLD, IEF, IWM, LQD, QQQ, SPY, TLT, VNQ, XLF),
-5327 trading days starting 2004-11-19. Source: Yahoo Finance (public).
+5327 trading days from 2004-11-19 to 2026-01-23.
+
+*Provenance*: Originally sourced from Yahoo Finance (public data). The demo
+pipeline uses this bundled snapshot and requires no internet access.
+
+## Documentation
+
+- **[Model Validation Report](docs/model_validation_report.md)** — MRM-style summary of model specification, leakage controls, reproducibility, backtesting, and limitations.
 
 ## Dependencies
 

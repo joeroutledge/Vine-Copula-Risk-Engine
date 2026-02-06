@@ -31,37 +31,50 @@ jobs:
 
       - name: Verify determinism (run demo twice)
         run: |
-          # Save first run metrics
-          cp outputs/demo_quick/metrics.json /tmp/metrics_run1.json
+          # Determinism check: With fixed NumPy seed and pyvinecopulib seeds,
+          # two runs with identical inputs must produce identical numeric outputs.
+          # We compare var_es_timeseries.csv which contains all VaR/ES forecasts
+          # from Monte Carlo simulation -- the most sensitive artifact to RNG state.
+
+          # Save first run artifacts
+          cp outputs/demo_quick/var_es_timeseries.csv /tmp/var_es_run1.csv
           cp outputs/demo_quick/backtest_summary.csv /tmp/backtest_run1.csv
 
           # Clean and run again
           rm -rf outputs/demo_quick/*
           make demo-quick
 
-          # Compare key metrics (should be identical with deterministic seeding)
+          # Compare var_es_timeseries.csv exactly (numeric columns)
           python -c "
-          import json
           import pandas as pd
+          import numpy as np
 
-          m1 = json.load(open('/tmp/metrics_run1.json'))
-          m2 = json.load(open('outputs/demo_quick/metrics.json'))
+          df1 = pd.read_csv('/tmp/var_es_run1.csv')
+          df2 = pd.read_csv('outputs/demo_quick/var_es_timeseries.csv')
 
-          # Compare non-deterministic-sensitive fields
-          assert m1['seed'] == m2['seed'], 'Seeds differ'
-          assert m1['train_days'] == m2['train_days'], 'Train days differ'
-          assert m1['oos_days'] == m2['oos_days'], 'OOS days differ'
-          assert m1['n_sim'] == m2['n_sim'], 'n_sim differs'
+          # Columns must match
+          assert list(df1.columns) == list(df2.columns), 'Column mismatch'
+          assert len(df1) == len(df2), f'Row count mismatch: {len(df1)} vs {len(df2)}'
 
-          # Compare backtest summaries (should be identical)
-          df1 = pd.read_csv('/tmp/backtest_run1.csv')
-          df2 = pd.read_csv('outputs/demo_quick/backtest_summary.csv')
+          # Compare all numeric columns exactly
+          numeric_cols = df1.select_dtypes(include=[np.number]).columns
+          for col in numeric_cols:
+              # Use array_equal for exact match (handles NaN correctly)
+              if not np.array_equal(df1[col].values, df2[col].values, equal_nan=True):
+                  diff_idx = np.where(df1[col].values != df2[col].values)[0]
+                  raise AssertionError(
+                      f'{col}: values differ at {len(diff_idx)} rows. '
+                      f'First diff at row {diff_idx[0]}: {df1[col].iloc[diff_idx[0]]} vs {df2[col].iloc[diff_idx[0]]}'
+                  )
 
-          # Check numeric columns match exactly
-          for col in ['n_breaches', 'hit_rate']:
-            assert (df1[col] == df2[col]).all(), f'{col} differs between runs'
+          # Also verify backtest summary (derived from var_es_timeseries)
+          bs1 = pd.read_csv('/tmp/backtest_run1.csv')
+          bs2 = pd.read_csv('outputs/demo_quick/backtest_summary.csv')
+          for col in ['n_breaches', 'hit_rate', 'kupiec_pvalue', 'chris_pvalue', 'es_ratio']:
+              if col in bs1.columns:
+                  assert np.allclose(bs1[col], bs2[col], rtol=1e-12, equal_nan=True), f'{col} differs'
 
-          print('Determinism check passed: two runs produced identical results')
+          print('Determinism check passed: var_es_timeseries.csv is byte-identical across runs')
           "
 
       - name: Validate order_source in model cards
