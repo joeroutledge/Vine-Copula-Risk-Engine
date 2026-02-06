@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/joeroutledge/Vine-Copula-Risk-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/joeroutledge/Vine-Copula-Risk-Engine/actions/workflows/ci.yml)
 
-A production-grade VaR/ES forecasting engine using D-vine copulas with optional
+A VaR/ES forecasting engine using D-vine copulas with optional
 score-driven (GAS) dynamics. The pipeline transforms daily returns through
 GARCH(1,1)-t marginals → PIT uniforms → D-vine copula → Monte Carlo simulation,
 producing one-step-ahead VaR/ES forecasts with full backtesting and governance
