@@ -13,9 +13,9 @@
     {
       "method": "gas_vine",
       "alpha": 0.01,
-      "vine_median_var": -0.01243054804172212,
+      "vine_median_var": -0.012931670815850121,
       "hs_median_var": -0.013185235335625156,
-      "ratio": 0.9427626982232203,
+      "ratio": 0.9807690561965223,
       "threshold": 2.0,
       "passed": true
     }
