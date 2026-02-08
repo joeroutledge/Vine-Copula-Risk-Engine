@@ -1,4 +1,4 @@
-# vine_risk_xva_demo: quick demo configuration for CI/testing
+# vine_risk: quick demo configuration for CI/testing
 # Reduced simulations and test window for fast iteration
 
 seed: 42

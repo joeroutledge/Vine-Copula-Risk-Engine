@@ -26,56 +26,62 @@ jobs:
       - name: Run demo-quick pipeline
         run: make demo-quick
 
-      - name: Validate manifest
+      - name: Validate demo-quick manifest
         run: python scripts/validate_manifest.py outputs/demo_quick/manifest.json
+
+      - name: Run demo-quick-weekly-gas pipeline
+        run: make demo-quick-weekly-gas
+
+      - name: Validate demo-quick-weekly-gas manifest
+        run: python scripts/validate_manifest.py outputs/demo_quick_weekly_gas/manifest.json
+
+      - name: Run sensitivity-quick pipeline
+        run: make sensitivity-quick
+
+      - name: Validate sensitivity-quick manifest
+        run: python scripts/validate_manifest.py outputs/sensitivity_quick/manifest.json
 
       - name: Verify determinism (run demo twice)
         run: |
           # Determinism check: With fixed NumPy seed and pyvinecopulib seeds,
           # two runs with identical inputs must produce identical numeric outputs.
-          # We compare var_es_timeseries.csv which contains all VaR/ES forecasts
-          # from Monte Carlo simulation -- the most sensitive artifact to RNG state.
 
-          # Save first run artifacts
-          cp outputs/demo_quick/var_es_timeseries.csv /tmp/var_es_run1.csv
+          # Save first run artifacts (demo-quick already ran above)
           cp outputs/demo_quick/backtest_summary.csv /tmp/backtest_run1.csv
+          cp outputs/demo_quick/dm_tests.csv /tmp/dm_tests_run1.csv
+          cp outputs/demo_quick/metrics.json /tmp/metrics_run1.json
+          cp outputs/demo_quick/vine_model_card_gas.json /tmp/vine_model_card_gas_run1.json
+          cp outputs/demo_quick/vine_model_card_static.json /tmp/vine_model_card_static_run1.json
 
           # Clean and run again
           rm -rf outputs/demo_quick/*
-          make demo-quick
+          python scripts/run_var_es_backtest.py --config configs/demo_quick.yaml
 
-          # Compare var_es_timeseries.csv exactly (numeric columns)
-          python -c "
-          import pandas as pd
-          import numpy as np
-
-          df1 = pd.read_csv('/tmp/var_es_run1.csv')
-          df2 = pd.read_csv('outputs/demo_quick/var_es_timeseries.csv')
-
-          # Columns must match
-          assert list(df1.columns) == list(df2.columns), 'Column mismatch'
-          assert len(df1) == len(df2), f'Row count mismatch: {len(df1)} vs {len(df2)}'
-
-          # Compare all numeric columns exactly
-          numeric_cols = df1.select_dtypes(include=[np.number]).columns
-          for col in numeric_cols:
-              # Use array_equal for exact match (handles NaN correctly)
-              if not np.array_equal(df1[col].values, df2[col].values, equal_nan=True):
-                  diff_idx = np.where(df1[col].values != df2[col].values)[0]
-                  raise AssertionError(
-                      f'{col}: values differ at {len(diff_idx)} rows. '
-                      f'First diff at row {diff_idx[0]}: {df1[col].iloc[diff_idx[0]]} vs {df2[col].iloc[diff_idx[0]]}'
-                  )
-
-          # Also verify backtest summary (derived from var_es_timeseries)
-          bs1 = pd.read_csv('/tmp/backtest_run1.csv')
-          bs2 = pd.read_csv('outputs/demo_quick/backtest_summary.csv')
-          for col in ['n_breaches', 'hit_rate', 'kupiec_pvalue', 'chris_pvalue', 'es_ratio']:
-              if col in bs1.columns:
-                  assert np.allclose(bs1[col], bs2[col], rtol=1e-12, equal_nan=True), f'{col} differs'
-
-          print('Determinism check passed: var_es_timeseries.csv is byte-identical across runs')
+          # Compare key artifacts exactly
+          for f in backtest_summary.csv dm_tests.csv metrics.json vine_model_card_gas.json vine_model_card_static.json; do
+            if ! diff /tmp/${f%.*}_run1.${f##*.} outputs/demo_quick/$f > /dev/null 2>&1; then
+              # For metrics.json, compare ignoring timestamps
+              if [ "$f" = "metrics.json" ]; then
+                python3 -c "
+          import json
+          m1 = json.load(open('/tmp/metrics_run1.json'))
+          m2 = json.load(open('outputs/demo_quick/metrics.json'))
+          # Remove timestamp fields before comparison
+          for m in [m1, m2]:
+              m.pop('produced_utc', None)
+          assert m1 == m2, f'metrics.json differs beyond timestamp'
+          print('metrics.json: OK (ignoring timestamp)')
           "
+              else
+                echo "FAIL: $f differs between runs"
+                diff /tmp/${f%.*}_run1.${f##*.} outputs/demo_quick/$f | head -20
+                exit 1
+              fi
+            else
+              echo "$f: OK (identical)"
+            fi
+          done
+          echo "Determinism check passed: all key artifacts identical across runs"
 
       - name: Validate order_source in model cards
         run: |

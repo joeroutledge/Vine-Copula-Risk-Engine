@@ -454,6 +454,22 @@ def main():
     df.to_csv(csv_path, index=False)
     print(f"\nSaved: {csv_path} ({len(df)} rows)")
 
+    # Save sensitivity metadata for reproducibility
+    meta = {
+        "produced_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "grid_mode": "TINY" if tiny_mode else "FULL",
+        "n_configs": len(df) // len(cfg["alphas"]),  # unique param combos
+        "parameter_grid": grid,
+        "seed": cfg["seed"],
+        "train_days": cfg["train_days"],
+        "n_assets": cfg["n_assets"],
+        "alphas": cfg["alphas"],
+    }
+    meta_path = out_dir / "sensitivity_meta.json"
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, indent=2)
+    print(f"Saved: {meta_path}")
+
     # Build and save manifest
     manifest = build_manifest(out_dir)
     manifest_path = out_dir / "manifest.json"

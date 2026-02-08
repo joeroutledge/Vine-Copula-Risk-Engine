@@ -1,4 +1,4 @@
-# vine_risk_xva_demo: quick demo with weekly GAS updates
+# vine_risk: quick demo with weekly GAS updates
 # Same as demo_quick.yaml but with gas_update_every: 5
 
 seed: 42

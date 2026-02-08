@@ -135,19 +135,6 @@ VaR/ES forecasts in `var_es_timeseries.csv` use return-space (negative for left 
 | `breaches.png` | Breach indicator with rolling breach rate for GAS D-vine |
 | `manifest.json` | SHA-256 hashes for all produced files |
 
-## Release artifacts
-
-To attach a reproducible archive to a GitHub Release:
-
-1. Run the pipeline: `make demo-quick`
-2. The pipeline creates `outputs/demo_quick/Archive01.zip` containing all outputs
-3. Create a GitHub Release and attach `Archive01.zip`
-4. Reviewers can verify integrity:
-   ```bash
-   unzip Archive01.zip -d outputs/demo_quick_verify/
-   python scripts/validate_manifest.py outputs/demo_quick_verify/manifest.json
-   ```
-
 ## Data
 
 This repository includes a **frozen snapshot** of historical data:

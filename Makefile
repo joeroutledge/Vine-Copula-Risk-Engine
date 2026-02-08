@@ -4,7 +4,7 @@ install:
 	pip install -e ".[dev]"
 
 demo-quick:
-	@echo "=== vine_risk_xva_demo: Quick demo (reduced simulations) ==="
+	@echo "=== vine_risk: Quick demo (reduced simulations) ==="
 	python scripts/run_var_es_backtest.py --config configs/demo_quick.yaml
 	@echo ""
 	@echo "=== Verifying manifest hashes ==="
@@ -12,7 +12,7 @@ demo-quick:
 	@echo "=== Done (quick demo) ==="
 
 demo-quick-weekly-gas:
-	@echo "=== vine_risk_xva_demo: Quick demo with weekly GAS updates ==="
+	@echo "=== vine_risk: Quick demo with weekly GAS updates ==="
 	python scripts/run_var_es_backtest.py --config configs/demo_quick_weekly_gas.yaml
 	@echo ""
 	@echo "=== Verifying manifest hashes ==="
@@ -20,7 +20,7 @@ demo-quick-weekly-gas:
 	@echo "=== Done (weekly GAS demo) ==="
 
 sensitivity-quick:
-	@echo "=== vine_risk_xva_demo: Sensitivity analysis ==="
+	@echo "=== vine_risk: Sensitivity analysis ==="
 	python scripts/run_sensitivity.py
 	@echo ""
 	@echo "=== Verifying manifest hashes ==="
