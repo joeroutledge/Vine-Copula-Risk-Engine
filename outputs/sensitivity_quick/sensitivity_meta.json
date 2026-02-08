@@ -1,0 +1,23 @@
+{
+  "produced_utc": "2026-02-08T17:38:48Z",
+  "grid_mode": "TINY",
+  "n_configs": 1,
+  "parameter_grid": {
+    "n_sim": [
+      500
+    ],
+    "nu_fixed": [
+      100
+    ],
+    "model": [
+      "gas"
+    ]
+  },
+  "seed": 42,
+  "train_days": 1000,
+  "n_assets": 5,
+  "alphas": [
+    0.01,
+    0.05
+  ]
+}
