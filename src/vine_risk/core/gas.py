@@ -246,6 +246,7 @@ def gas_filter(
     max_scaled_score: float = GAS_FILTER_DEFAULTS["max_scaled_score"],
     clip_theta: float = GAS_FILTER_DEFAULTS["clip_theta"],
     update_every: int = GAS_FILTER_DEFAULTS["update_every"],
+    t_offset: int = 0,
     return_final_state: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Optional[GASFilterState]]:
     """
@@ -288,6 +289,11 @@ def gas_filter(
         Setting update_every=5 produces weekly updates. On non-update days,
         both theta and opg are carried forward unchanged. This reduces
         noise from high-frequency score fluctuations.
+    t_offset : int
+        Global time offset for update schedule. The update condition is
+        ((t_offset + t) % update_every) == 0. This ensures that when
+        filtering is split into segments (e.g., train then OOS), the
+        weekly cadence is preserved across the boundary. Default 0.
     return_final_state : bool
         If True, return the final state for OOS continuation
 
@@ -305,7 +311,7 @@ def gas_filter(
     Notes
     -----
     When update_every > 1, the GAS state is only updated on days where
-    (t % update_every == 0). On other days:
+    ((t_offset + t) % update_every == 0). On other days:
     - Likelihood is still computed using current theta (for VaR/ES)
     - Score is NOT computed
     - OPG is NOT updated
@@ -313,6 +319,13 @@ def gas_filter(
 
     This is useful for reducing noise from high-frequency score fluctuations
     while still producing daily VaR/ES forecasts.
+
+    The t_offset parameter ensures cadence invariance across segmentation:
+    if you split filtering at time k, running gas_filter on z[:k] with
+    t_offset=0, then gas_filter on z[k:] with t_offset=k (and theta_init,
+    opg_init from the first segment's final state), the concatenated
+    theta_path will be identical to running gas_filter on the full z
+    with t_offset=0.
     """
     from vine_risk.core.copulas import log_student_t_copula_density
 
@@ -335,8 +348,8 @@ def gas_filter(
         # Log-likelihood at current theta (always computed)
         ll_path[t] = log_student_t_copula_density(z1[t], z2[t], rho, nu)
 
-        # Only update state on update days
-        if t % update_every == 0:
+        # Only update state on update days (using global index for cadence invariance)
+        if (t_offset + t) % update_every == 0:
             # Score (computed after observing u_t)
             score, info = compute_score_and_info(z1[t], z2[t], theta, nu, opg_floor)
             score = np.clip(score, -score_cap, score_cap)
@@ -545,6 +558,7 @@ def gas_filter_tau_mode(
     max_scaled_score: float = GAS_FILTER_DEFAULTS["max_scaled_score"],
     clip_kappa: float = 3.8,
     update_every: int = GAS_FILTER_DEFAULTS["update_every"],
+    t_offset: int = 0,
     return_final_state: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[GASFilterState]]:
     """
@@ -574,6 +588,8 @@ def gas_filter_tau_mode(
         Filter tuning parameters (same semantics as theta-mode)
     update_every : int
         Update GAS state every K observations. Default 1 (daily).
+    t_offset : int
+        Global time offset for update schedule (same semantics as theta-mode).
     return_final_state : bool
         If True, return final state for OOS continuation
 
@@ -620,8 +636,8 @@ def gas_filter_tau_mode(
         # Log-likelihood at current rho (always computed)
         ll_path[t] = log_student_t_copula_density(z1[t], z2[t], rho, nu)
 
-        # Only update state on update days
-        if t % update_every == 0:
+        # Only update state on update days (using global index for cadence invariance)
+        if (t_offset + t) % update_every == 0:
             # Score in kappa space
             score = gas_score_kappa_t(z1[t], z2[t], kappa, nu)
             if not np.isfinite(score):

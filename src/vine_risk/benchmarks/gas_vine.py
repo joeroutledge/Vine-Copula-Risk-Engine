@@ -88,6 +88,7 @@ class GASDVineModel(StaticDVineModel):
         self.tree1_models: Dict[int, Dict] = {}
         self.tree1_is_dynamic: Dict[int, bool] = {}  # Track dynamic vs static edges
         self.gas_update_every = gas_update_every  # GAS state update frequency
+        self.train_end_: int = 0  # Will be set after fit()
 
     def fit(
         self,
@@ -98,8 +99,11 @@ class GASDVineModel(StaticDVineModel):
         Fit model parameters.
 
         Step 1: Fit static vine (family selection via BIC).
-        Step 2: For Tree-1 edges with ELLIPTICAL families, add GAS dynamics.
+        Step 2: For Tree-1 edges with ELLIPTICAL families, estimate GAS params.
                 Non-elliptical edges remain static.
+        Step 3: Compute full filtered paths across entire sample (train + OOS)
+                using estimated GAS params. This is causal filtering, not
+                re-estimation: params are fixed, we just run the filter forward.
 
         Parameters
         ----------
@@ -114,6 +118,9 @@ class GASDVineModel(StaticDVineModel):
             GAS model info for dynamic edges only
         """
         super().fit(U_train)
+
+        # Store train_end for OOS indexing
+        self.train_end_ = len(U_train)
 
         if not fit_gas:
             return {}
@@ -169,14 +176,76 @@ class GASDVineModel(StaticDVineModel):
                 'nu_fixed': nu,
                 'rho_static': rho_static,
                 'theta_init': theta_init,
-                'theta_path': theta_path,
+                'theta_path': theta_path,  # Training only (for backward compat)
                 'll_path': ll_path,
                 'lambda_path': lambda_path,
                 'final_state': final_state,
                 'original_family': str(selected_family).split('.')[-1],
             }
 
+        # After all GAS params are estimated, compute full filtered paths
+        # across the entire sample (train + OOS). This is causal filtering:
+        # params are fixed, we use observations causally (up to t-1 for theta_t).
+        self._compute_full_filter_paths()
+
         return self.tree1_models
+
+    def _compute_full_filter_paths(self) -> None:
+        """
+        Compute GAS filtered paths across the FULL sample (train + OOS).
+
+        This method runs gas_filter() on the entire self.U dataset using
+        GAS parameters estimated on training data only. The filtering is
+        causal by construction: theta_t uses observations up to t-1 only.
+
+        For each dynamic edge, stores:
+        - theta_path_full: Full filtered theta path (length = len(self.U))
+        - rho_path_full: Full filtered rho path (rho = tanh(theta))
+        - final_state_full: Final state after filtering all observations
+
+        This enables truly dynamic OOS simulation: for any t_idx, we can
+        use rho_path_full[t_idx] directly as the copula correlation.
+        """
+        if not self.tree1_models:
+            return
+
+        # Get full ordered PIT uniforms
+        U_ord_full = clip01(self.U.iloc[:, self.order].values)
+
+        filter_kwargs = {**GAS_FILTER_DEFAULTS, "update_every": self.gas_update_every}
+
+        for edge in range(self.d - 1):
+            if not self.tree1_is_dynamic.get(edge, False):
+                continue
+            if edge not in self.tree1_models:
+                continue
+
+            model_info = self.tree1_models[edge]
+            params = model_info['params']
+            nu = model_info['nu_fixed']
+            theta_init = model_info['theta_init']
+
+            # Extract full z1, z2 series
+            u1_full = U_ord_full[:, edge]
+            u2_full = U_ord_full[:, edge + 1]
+            z1_full = tdist.ppf(u1_full, nu)
+            z2_full = tdist.ppf(u2_full, nu)
+
+            # Run gas_filter on full sample with t_offset=0 (single run)
+            theta_path_full, ll_path_full, rho_path_full, final_state_full = gas_filter(
+                z1_full, z2_full, params, nu,
+                theta_init=theta_init,
+                opg_init=1.0,
+                return_final_state=True,
+                t_offset=0,
+                **filter_kwargs,
+            )
+
+            # Store full paths
+            model_info['theta_path_full'] = theta_path_full
+            model_info['rho_path_full'] = rho_path_full
+            model_info['ll_path_full'] = ll_path_full
+            model_info['final_state_full'] = final_state_full
 
     def _extract_elliptical_rho(self, bc: "pvc.Bicop") -> float:
         """Extract correlation parameter from elliptical copula."""
@@ -373,13 +442,32 @@ class GASDVineModel(StaticDVineModel):
 
     def predict_tree1_rhos(self, t_idx: int) -> np.ndarray:
         """
-        Predict Tree-1 correlations at time t+1.
+        Get Tree-1 correlations at time t_idx.
 
-        For dynamic edges: uses GAS-predicted rho.
+        For dynamic edges: returns rho_path_full[t_idx], the filtered
+        correlation using observations up to t_idx-1 (causal filtering).
         For static edges: returns the static correlation parameter.
 
-        Note: For non-elliptical static edges, the returned value is
-        Kendall's tau (not Pearson correlation), as stored in static_params.
+        Parameters
+        ----------
+        t_idx : int
+            Time index. For VaR/ES forecasting at time t, use t_idx=t.
+            The returned rho_t is based on information up to t-1.
+
+        Returns
+        -------
+        np.ndarray
+            Correlation values for each Tree-1 edge.
+
+        Note
+        ----
+        For non-elliptical static edges, the returned value is Kendall's
+        tau (not Pearson correlation), as stored in static_params.
+
+        Under gas_filter's predict-then-update convention, theta_path[t]
+        is the state BEFORE observing (z1[t], z2[t]). Thus rho_path_full[t]
+        uses only observations up to t-1, which is correct for VaR/ES
+        forecasting at time t.
         """
         rhos = np.zeros(self.d - 1)
 
@@ -387,17 +475,24 @@ class GASDVineModel(StaticDVineModel):
             # Check if this edge is dynamic
             if self.tree1_is_dynamic.get(edge, False) and edge in self.tree1_models:
                 model_info = self.tree1_models[edge]
-                params = model_info['params']
-                theta_path = model_info['theta_path']
 
-                if t_idx < len(theta_path):
-                    theta_t = theta_path[t_idx]
+                # Use precomputed full path (covers both train and OOS)
+                rho_path_full = model_info.get('rho_path_full')
+
+                if rho_path_full is not None and t_idx < len(rho_path_full):
+                    # Direct lookup: rho_t from causally filtered path
+                    rhos[edge] = rho_path_full[t_idx]
+                elif rho_path_full is not None:
+                    # Beyond data: use last filtered value
+                    # This should not happen in normal backtest usage
+                    rhos[edge] = rho_path_full[-1]
                 else:
-                    theta_t = theta_path[-1]
-
-                B_eff = np.tanh(params.B)
-                theta_pred = params.omega + B_eff * theta_t
-                rhos[edge] = np.tanh(np.clip(theta_pred, -5.0, 5.0))
+                    # Fallback: use training path (backward compatibility)
+                    theta_path = model_info['theta_path']
+                    if t_idx < len(theta_path):
+                        rhos[edge] = np.tanh(theta_path[t_idx])
+                    else:
+                        rhos[edge] = np.tanh(theta_path[-1])
             else:
                 # Static edge: use static params (may be tau for Archimedean)
                 rhos[edge], _ = self.static_params[(1, edge)]
@@ -412,7 +507,11 @@ class GASDVineModel(StaticDVineModel):
         """
         Build a vine copula using parameters at time t_idx.
 
-        For dynamic Tree-1 edges: uses GAS-predicted rhos (Student-t).
+        For VaR/ES forecasting at time t, call build_vine_at_time(t).
+        The returned vine uses rho_t for dynamic edges, which is based
+        on information up to t-1 (causal filtering).
+
+        For dynamic Tree-1 edges: uses rho_path_full[t_idx] (Student-t).
         For static Tree-1 edges: uses the BIC-selected pair copula.
         Higher trees: always use the static vine's fitted pair-copulas.
         """

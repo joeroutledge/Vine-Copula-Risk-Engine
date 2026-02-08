@@ -69,6 +69,14 @@ When BIC selects a non-elliptical family for a Tree-1 edge, that edge remains st
 
 The GAS filter implementation in `src/vine_risk/core/gas.py:gas_filter()` is used for both parameter estimation and out-of-sample evaluation. The optimizer calls `gas_neg_loglik()`, which internally calls `gas_filter()` with identical filter parameters (OPG decay, score clipping, etc.). This eliminates estimation/evaluation mismatch bugs.
 
+**4. OOS filtering is causal (no frozen dynamics)**
+
+After GAS parameters (ω, A, B) are estimated on training data, the GAS filter continues to update θ_t causally throughout the out-of-sample period using observed OOS data. The filtered path `rho_path_full` spans the entire sample (train + OOS), and `predict_tree1_rhos(t)` returns `rho_path_full[t]` directly. This ensures correlations evolve dynamically OOS rather than freezing at the last training value.
+
+**5. Cadence invariance across segmentation**
+
+When using `gas_update_every > 1` (e.g., weekly updates), the update schedule is preserved across train/OOS boundaries via a `t_offset` parameter. The update condition `(t_offset + t) % update_every == 0` ensures global update days (0, 5, 10, ...) are consistent regardless of how the series is segmented for computation.
+
 ## Baselines
 
 - **HS**: Non-parametric, no distributional assumption.

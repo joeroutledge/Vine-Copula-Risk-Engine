@@ -75,6 +75,18 @@ where s̃_t is the scaled score (Fisher information-weighted gradient of the log
 
 **Rationale:** The Fisher-z score is only well-defined for elliptical copulas where θ = arctanh(ρ). Forcing GAS on Archimedean families would misspecify tail dependence.
 
+### B.4.1 OOS Filtering Semantics
+
+After GAS parameters (ω, A, B) are estimated on training data, the filter continues **causally** through the out-of-sample period:
+
+1. **Full filtered path**: After fitting, `_compute_full_filter_paths()` runs the GAS filter across the entire sample (train + OOS) using the estimated parameters
+2. **No frozen dynamics**: `predict_tree1_rhos(t)` returns `rho_path_full[t]` directly, ensuring correlations evolve dynamically OOS
+3. **Causal information**: At each OOS time t, θ_t is computed using observations up to time t-1 only (predict-then-update convention)
+
+**Cadence invariance:** With `gas_update_every > 1` (e.g., weekly updates), the update schedule is preserved across train/OOS boundaries via a `t_offset` parameter. The condition `(t_offset + t) % update_every == 0` ensures global update days are consistent regardless of segmentation.
+
+**Verification:** Tests in `tests/test_gas_vine_oos_dynamic.py` and `tests/test_gas_update_every_segment_invariance.py` verify these properties.
+
 ### B.5 Recalibration Schedule
 
 | Component | Default behavior |
@@ -145,7 +157,7 @@ python scripts/validate_manifest.py outputs/demo_quick/manifest.json
 ### D.3 CI Verification
 
 GitHub Actions CI runs:
-1. Full test suite (201 tests)
+1. Full test suite (213 tests)
 2. Demo pipeline execution
 3. Manifest validation
 4. Determinism check (two identical runs produce identical numeric outputs)
